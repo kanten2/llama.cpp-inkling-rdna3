@@ -1,0 +1,417 @@
+{
+  "baseline_commit": "95ed0cd",
+  "results": {
+    "base": {
+      "prompt_s": 11.72986225,
+      "decode_s": 5.144501249999999,
+      "wall_s": 16.902877374996024
+    },
+    "candidate": {
+      "prompt_s": 11.6990105,
+      "decode_s": 5.09306625,
+      "wall_s": 16.81654035000247
+    },
+    "strata": {
+      "prompt_s": 6.90015,
+      "decode_s": 3.9441,
+      "wall_s": 10.846182199995383
+    }
+  },
+  "change": {
+    "prompt_s": {
+      "saved_s": 0.030851750000000067,
+      "saved_pct": 0.2630188602598449,
+      "gap_before_s": 4.82971225,
+      "gap_after_s": 4.7988605
+    },
+    "decode_s": {
+      "saved_s": 0.051434999999999675,
+      "saved_pct": 0.9998053747192648,
+      "gap_before_s": 1.2004012499999992,
+      "gap_after_s": 1.1489662499999995
+    },
+    "wall_s": {
+      "saved_s": 0.08633702499355422,
+      "saved_pct": 0.5107830050359974,
+      "gap_before_s": 6.056695175000641,
+      "gap_after_s": 5.970358150007087
+    }
+  },
+  "trials": {
+    "base": [
+      {
+        "block": "base",
+        "prompt": 1,
+        "prompt_s": 11.752801999999999,
+        "decode_s": 5.069685000000001,
+        "wall_s": 16.849151799979154
+      },
+      {
+        "block": "base",
+        "prompt": 2,
+        "prompt_s": 11.789193,
+        "decode_s": 5.085064999999999,
+        "wall_s": 16.887438700010534
+      },
+      {
+        "block": "base-recheck",
+        "prompt": 2,
+        "prompt_s": 11.648772999999998,
+        "decode_s": 5.1558459999999995,
+        "wall_s": 16.83633859999827
+      },
+      {
+        "block": "base-recheck",
+        "prompt": 1,
+        "prompt_s": 11.728681,
+        "decode_s": 5.267409,
+        "wall_s": 17.038580399996135
+      }
+    ],
+    "candidate": [
+      {
+        "block": "candidate",
+        "prompt": 1,
+        "prompt_s": 11.715855,
+        "decode_s": 5.096113999999999,
+        "wall_s": 16.83950649999315
+      },
+      {
+        "block": "candidate",
+        "prompt": 2,
+        "prompt_s": 11.745702,
+        "decode_s": 5.091312,
+        "wall_s": 16.850126100005582
+      },
+      {
+        "block": "candidate-recheck",
+        "prompt": 2,
+        "prompt_s": 11.650272000000001,
+        "decode_s": 5.068613,
+        "wall_s": 16.731825599999866
+      },
+      {
+        "block": "candidate-recheck",
+        "prompt": 1,
+        "prompt_s": 11.684213,
+        "decode_s": 5.116225999999999,
+        "wall_s": 16.84470320001128
+      }
+    ],
+    "strata": [
+      {
+        "block": "strata",
+        "prompt": 1,
+        "prompt_s": 6.9273,
+        "decode_s": 3.8527,
+        "wall_s": 10.78199570000288
+      },
+      {
+        "block": "strata",
+        "prompt": 2,
+        "prompt_s": 6.8618999999999994,
+        "decode_s": 3.7894,
+        "wall_s": 10.653148899989901
+      },
+      {
+        "block": "strata-recheck",
+        "prompt": 2,
+        "prompt_s": 6.9121999999999995,
+        "decode_s": 4.107600000000001,
+        "wall_s": 11.021735099988291
+      },
+      {
+        "block": "strata-recheck",
+        "prompt": 1,
+        "prompt_s": 6.8991999999999996,
+        "decode_s": 4.0267,
+        "wall_s": 10.927849100000458
+      }
+    ]
+  },
+  "bitcheck": {
+    "matched": true,
+    "statuses": [
+      [
+        0,
+        "record",
+        0
+      ],
+      [
+        0,
+        "compare",
+        0
+      ],
+      [
+        1,
+        "record",
+        0
+      ],
+      [
+        1,
+        "compare",
+        0
+      ]
+    ],
+    "compared_fp32_values_if_matched": 102429696,
+    "greedy_token_ids_identical": true
+  },
+  "method": {
+    "gpu": "Radeon RX 7900 XTX, Windows ROCm",
+    "workload": "Two fixed 16384-token inputs, 256 greedy output tokens, no prompt cache, FP16 KV, context 17408, microbatch/chunk 512. Two runs per prompt for each engine; warm-up on each launch; wall time excludes model loading.",
+    "schedule": "base, candidate, Strata, Strata, candidate, base; second half uses reverse prompt order",
+    "rd": "Inkling 2 Mini IQ4_NL, standard attention, direct and WMMA off; both baseline and candidate include batched residual mix fusion.",
+    "strata": "0.2.19 / Inkling engine 0.1.65, SQ-20, draft off, HIPBLASLt off"
+  },
+  "sha256": {
+    "base": {
+      "llama.dll": "ae31c79b66d9166878b5cc38916e00a32d54c631d485cd3277fc6101fd00a4a5",
+      "ggml-hip.dll": "0479d94c74cd2844940247e363204099ae2d4a532bd1d2e9ccb6172f4e53d0b3"
+    },
+    "candidate": {
+      "llama.dll": "ae31c79b66d9166878b5cc38916e00a32d54c631d485cd3277fc6101fd00a4a5",
+      "ggml-hip.dll": "314233f1236e23fc17a09b78b277740ffc0e4a8dc10b3e95400e8ceb559da38f"
+    }
+  },
+  "input_hashes_int32le": [
+    "4d9f121d0f3cc312b8fb17d5a6a2ee45678fb67d21c9c24b724d05d5d9a5fedf",
+    "4e9f1c74d9444d225787979836f4e597df10475fb6d1ab843fc21d0f63ad2beb"
+  ],
+  "paired_block_saved_s": {
+    "prompt_s": [
+      0.04021900000000045,
+      0.021484499999999684
+    ],
+    "decode_s": [
+      -0.016337999999999298,
+      0.11920799999999954
+    ],
+    "wall_s": [
+      0.023478949995478615,
+      0.14919509999162983
+    ]
+  },
+  "per_session_means_s": {
+    "base": [
+      {
+        "prompt_s": 11.72986225,
+        "decode_s": 5.144501249999999,
+        "wall_s": 16.902877374996024
+      }
+    ],
+    "candidate": [
+      {
+        "prompt_s": 11.6990105,
+        "decode_s": 5.09306625,
+        "wall_s": 16.81654035000247
+      }
+    ],
+    "strata": [
+      {
+        "prompt_s": 6.90015,
+        "decode_s": 3.9441,
+        "wall_s": 10.846182199995383
+      }
+    ]
+  },
+  "implementation": {
+    "target": "RDNA3.0, contiguous F32 64x2304 weights and 32 to 512 tokens",
+    "operation": "FP32 strided batched GEMM with zero gate stride and direct weight/output strides",
+    "reference": "Previously captured logits, verified bit-identical to 95ed0cd on the same teacher-forced token sequences",
+    "dispatch_verified": true
+  },
+  "graph": {
+    "base": {
+      "prefill_graph_nodes": 11431,
+      "gpu_compute_buffer_MiB": 1893.72
+    },
+    "candidate": {
+      "prefill_graph_nodes": 11431,
+      "gpu_compute_buffer_MiB": 1893.72
+    }
+  },
+  "pointer_array_experiment": {
+    "results": {
+      "base": {
+        "prompt_s": 12.123662,
+        "decode_s": 5.06030975,
+        "wall_s": 17.207170250010677
+      },
+      "candidate": {
+        "prompt_s": 12.07394525,
+        "decode_s": 5.03569975,
+        "wall_s": 17.144946474996686
+      },
+      "strata": {
+        "prompt_s": 7.290675,
+        "decode_s": 4.924575,
+        "wall_s": 12.217272025009152
+      }
+    },
+    "change": {
+      "prompt_s": {
+        "saved_s": 0.049716749999999976,
+        "saved_pct": 0.4100803041193313,
+        "gap_before_s": 4.832986999999999,
+        "gap_after_s": 4.783270249999999
+      },
+      "decode_s": {
+        "saved_s": 0.02461000000000002,
+        "saved_pct": 0.48633386523423416,
+        "gap_before_s": 0.13573475000000013,
+        "gap_after_s": 0.1111247500000001
+      },
+      "wall_s": {
+        "saved_s": 0.062223775013990235,
+        "saved_pct": 0.36161538538825866,
+        "gap_before_s": 4.989898225001525,
+        "gap_after_s": 4.927674449987535
+      }
+    },
+    "paired_block_saved_s": {
+      "prompt_s": [
+        0.06926149999999964,
+        0.03017200000000031
+      ],
+      "decode_s": [
+        0.0682229999999997,
+        -0.01900299999999966
+      ],
+      "wall_s": [
+        0.13497800001641735,
+        -0.010530449988436885
+      ]
+    },
+    "trials": {
+      "base": [
+        {
+          "block": "base",
+          "prompt": 1,
+          "prompt_s": 12.109079,
+          "decode_s": 5.04744,
+          "wall_s": 17.190124200016726
+        },
+        {
+          "block": "base",
+          "prompt": 2,
+          "prompt_s": 12.186440000000001,
+          "decode_s": 5.1443389999999996,
+          "wall_s": 17.36351300001843
+        },
+        {
+          "block": "base-recheck",
+          "prompt": 2,
+          "prompt_s": 12.051183000000002,
+          "decode_s": 4.9857759999999995,
+          "wall_s": 17.050104299996747
+        },
+        {
+          "block": "base-recheck",
+          "prompt": 1,
+          "prompt_s": 12.147946,
+          "decode_s": 5.063684,
+          "wall_s": 17.224939500010805
+        }
+      ],
+      "candidate": [
+        {
+          "block": "candidate",
+          "prompt": 1,
+          "prompt_s": 12.079571,
+          "decode_s": 5.02013,
+          "wall_s": 17.150330000004033
+        },
+        {
+          "block": "candidate",
+          "prompt": 2,
+          "prompt_s": 12.077425,
+          "decode_s": 5.035203,
+          "wall_s": 17.133351199998287
+        },
+        {
+          "block": "candidate-recheck",
+          "prompt": 2,
+          "prompt_s": 12.055907,
+          "decode_s": 5.010807,
+          "wall_s": 17.09862809997867
+        },
+        {
+          "block": "candidate-recheck",
+          "prompt": 1,
+          "prompt_s": 12.082878000000001,
+          "decode_s": 5.076658999999999,
+          "wall_s": 17.197476600005757
+        }
+      ],
+      "strata": [
+        {
+          "block": "strata",
+          "prompt": 1,
+          "prompt_s": 7.2396,
+          "decode_s": 4.9249,
+          "wall_s": 12.166534099989804
+        },
+        {
+          "block": "strata",
+          "prompt": 2,
+          "prompt_s": 7.3278,
+          "decode_s": 4.5265,
+          "wall_s": 11.856273700017482
+        },
+        {
+          "block": "strata-recheck",
+          "prompt": 2,
+          "prompt_s": 7.2338000000000005,
+          "decode_s": 5.1922,
+          "wall_s": 12.428087400010554
+        },
+        {
+          "block": "strata-recheck",
+          "prompt": 1,
+          "prompt_s": 7.3615,
+          "decode_s": 5.0546999999999995,
+          "wall_s": 12.418192900018767
+        }
+      ]
+    },
+    "bitcheck": {
+      "matched": true,
+      "statuses": [
+        [
+          0,
+          "record",
+          0
+        ],
+        [
+          0,
+          "compare",
+          0
+        ],
+        [
+          1,
+          "record",
+          0
+        ],
+        [
+          1,
+          "compare",
+          0
+        ]
+      ],
+      "compared_fp32_values_if_matched": 102429696,
+      "greedy_token_ids_identical": true
+    },
+    "sha256": {
+      "base": {
+        "llama.dll": "ae31c79b66d9166878b5cc38916e00a32d54c631d485cd3277fc6101fd00a4a5",
+        "ggml-hip.dll": "0479d94c74cd2844940247e363204099ae2d4a532bd1d2e9ccb6172f4e53d0b3"
+      },
+      "candidate": {
+        "llama.dll": "ae31c79b66d9166878b5cc38916e00a32d54c631d485cd3277fc6101fd00a4a5",
+        "ggml-hip.dll": "a0940dd25ac40bcf9a9f3ce0dec304427d99a7e6c65a48edb8ec5908899b7dfb"
+      }
+    }
+  },
+  "previous_reported_prefill_gap_s": 4.81642725,
+  "selected_variant": "Strided batched GEMM. Both compared variants preserved logits and reduced mean prefill in both blocks; strided avoids a GPU pointer setup launch and reduced wall time in both blocks."
+}

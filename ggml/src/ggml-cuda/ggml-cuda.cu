@@ -5435,6 +5435,82 @@ static bool inkling_overlaps(const ggml_tensor * a, const ggml_tensor * b) {
     return p < q + ggml_nbytes(b) && q < p + ggml_nbytes(a);
 }
 
+static bool inkling_try_control_projections(ggml_backend_cuda_context * ctx, ggml_cgraph * graph, int & i) {
+    constexpr int width = 2304;
+    constexpr int rank = 64;
+    auto * first = graph->nodes[i];
+    if (first->op != GGML_OP_MUL_MAT || i + 7 >= graph->n_nodes || ggml_cuda_fusion_disabled()) {
+        return false;
+    }
+    auto * second = graph->nodes[i + 1];
+    auto * out = graph->nodes[i + 7];
+    if (second->op != GGML_OP_MUL_MAT || out->op != GGML_OP_ADD ||
+        strcmp(out->name, "inkling_ctrl_update") != 0 ||
+        !GGML_CUDA_CC_IS_RDNA3_0(ggml_cuda_info().devices[ctx->device].cc)) {
+        return false;
+    }
+    auto * sub = out->src[0];
+    auto * gained = out->src[1];
+    if (sub->op != GGML_OP_SUB || gained->op != GGML_OP_MUL || sub->src[1]->op != GGML_OP_MUL) {
+        return false;
+    }
+    auto * gain = gained->src[0];
+    auto * forget = sub->src[1]->src[0];
+    if (gain->op != GGML_OP_UNARY || forget->op != GGML_OP_UNARY ||
+        ggml_get_unary_op(gain) != GGML_UNARY_OP_TANH || ggml_get_unary_op(forget) != GGML_UNARY_OP_TANH ||
+        !((gain->src[0] == first && forget->src[0] == second) ||
+          (gain->src[0] == second && forget->src[0] == first))) {
+        return false;
+    }
+    auto * gate = first->src[1];
+    static const bool custom_compute_type = getenv("GGML_CUDA_CUBLAS_COMPUTE_TYPE") != nullptr;
+    const int64_t tokens = gate->ne[1];
+    auto * a = first->src[0];
+    auto * b = second->src[0];
+    if (custom_compute_type || gate != second->src[1] || gate->ne[0] != rank || tokens < 32 || tokens > 512 ||
+        a->ne[0] != rank || a->ne[1] != width || !ggml_are_same_shape(a, b) ||
+        first->ne[0] != width || first->ne[1] != tokens || !ggml_are_same_shape(first, second) ||
+        (second->flags & GGML_TENSOR_FLAG_COMPUTE) == 0) {
+        return false;
+    }
+    for (auto * t : {a, b, gate, first, second}) {
+        if (t->type != GGML_TYPE_F32 || !ggml_is_matrix(t) || !ggml_is_contiguous(t)) {
+            return false;
+        }
+    }
+    if (inkling_overlaps(first, second) || inkling_overlaps(first, gate) || inkling_overlaps(second, gate) ||
+        inkling_overlaps(first, b) || inkling_overlaps(second, a)) {
+        return false;
+    }
+
+    // Both instances read the same gate (stride B = 0). The weights and outputs
+    // already live in device buffers, so their strides need no packing kernel.
+    if (a->buffer != b->buffer || first->buffer != second->buffer || a->data == b->data) {
+        return false;
+    }
+    auto address = [](const ggml_tensor * t) { return reinterpret_cast<int64_t>(t->data); };
+    if (address(a) > address(b)) {
+        std::swap(a, b);
+        std::swap(first, second);
+    }
+    const int64_t weight_stride = (address(b) - address(a))/sizeof(float);
+    const int64_t output_stride = (address(second) - address(first))/int64_t(sizeof(float));
+    if (output_stride < width * tokens || weight_stride < width * rank) {
+        return false;
+    }
+
+    const float alpha = 1.0f;
+    const float beta = 0.0f;
+    CUBLAS_CHECK(cublasSgemmStridedBatched(ctx->cublas_handle(), CUBLAS_OP_T, CUBLAS_OP_N,
+        width, tokens, rank, &alpha, (const float *) a->data, rank, weight_stride,
+        (const float *) gate->data, rank, 0, &beta, (float *) first->data, width, output_stride, 2));
+
+    ++i;
+    static const bool announced = [] { GGML_LOG_INFO("INKLING_CONTROL_PROJECTIONS_ACTIVE\n"); return true; }();
+    GGML_UNUSED(announced);
+    return true;
+}
+
 // Preserve the separately rounded products, subtraction and addition of the graph.
 static __global__ void inkling_control_update(const float * gain, const float * forget, const float * cur,
                                              const float * message, float * dst, int64_t count) {
@@ -5951,6 +6027,9 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                 }
 
 #ifdef GGML_USE_HIP
+                if (!is_concurrent_event_active && inkling_try_control_projections(cuda_ctx, cgraph, i)) {
+                    continue;
+                }
                 if (!is_concurrent_event_active && inkling_try_control_update(cuda_ctx, cgraph, i)) {
                     continue;
                 }
