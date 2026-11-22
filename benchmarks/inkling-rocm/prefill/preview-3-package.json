@@ -1,0 +1,119 @@
+{
+  "archive": "inkling-rdna3-windows-gfx1100.zip",
+  "sha256": "6a09aa0e11a0e858677fdee941082479f806fe4e7ff7a0c55a9af3fa69acc9d3",
+  "ggml_hip_sha256": "f7df28a4a04f214005fe789204adc5278a6577c92694c95e8017be6e6abc6ecd",
+  "gpu": "AMD Radeon RX 7900 XTX",
+  "platform": "Windows x64 / ROCm gfx1100",
+  "protocol": {
+    "launcher_chat": "Browser UI, 4096 context, three registry numbers, GUI text matched the completed stream.",
+    "tg768": "bench.cmd, one timed run after warm-up.",
+    "long_chat": "Packaged server, 16384 context, original 14999-token registry, uncached, seed 42, temperature 0.",
+    "pp16384": "Packaged llama-bench, one timed run per mode after a full-length warm-up. Five-run development measurements are in raw/."
+  },
+  "models": {
+    "IQ4_NL": {
+      "chat_cmd_answer": "73841 52973 84627",
+      "chat_cmd_fusion_active": true,
+      "bench_cmd_tg768_tok_s": 54.37,
+      "long_chat": {
+        "id": "original",
+        "expected": [
+          "73841",
+          "52973",
+          "84627"
+        ],
+        "answer": "73841 52973 84627",
+        "finish": "stop",
+        "correct": true,
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 14999,
+          "prompt_ms": 14113.337,
+          "prompt_per_token_ms": 0.9409518634575638,
+          "prompt_per_second": 1062.7536209189932,
+          "predicted_n": 149,
+          "predicted_ms": 3030.113,
+          "predicted_per_token_ms": 20.473736486486484,
+          "predicted_per_second": 48.843062948477495
+        },
+        "usage": {
+          "completion_tokens": 149,
+          "prompt_tokens": 14999,
+          "total_tokens": 15148,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        }
+      },
+      "pp16384_off": {
+        "tok_s": 856.142139,
+        "seconds": 19.1370092,
+        "dispatch": [
+          "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+          "load_tensors: offloaded 49/49 layers to GPU"
+        ]
+      },
+      "pp16384_on": {
+        "tok_s": 1170.235603,
+        "seconds": 14.0005995,
+        "dispatch": [
+          "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+          "load_tensors: offloaded 49/49 layers to GPU",
+          "PP_FUSION_ACTIVE keys=512 queries=512"
+        ]
+      }
+    },
+    "UD-Q4_K_M": {
+      "chat_cmd_answer": "73841 52973 84627",
+      "chat_cmd_fusion_active": true,
+      "bench_cmd_tg768_tok_s": 56.46,
+      "long_chat": {
+        "id": "original",
+        "expected": [
+          "73841",
+          "52973",
+          "84627"
+        ],
+        "answer": "73841 52973 84627",
+        "finish": "stop",
+        "correct": true,
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 14999,
+          "prompt_ms": 14761.02,
+          "prompt_per_token_ms": 0.9841336089072605,
+          "prompt_per_second": 1016.122192097836,
+          "predicted_n": 139,
+          "predicted_ms": 2765.254,
+          "predicted_per_token_ms": 20.038072463768117,
+          "predicted_per_second": 49.904999685381526
+        },
+        "usage": {
+          "completion_tokens": 139,
+          "prompt_tokens": 14999,
+          "total_tokens": 15138,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        }
+      },
+      "pp16384_off": {
+        "tok_s": 838.634658,
+        "seconds": 19.5365167,
+        "dispatch": [
+          "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+          "load_tensors: offloaded 49/49 layers to GPU"
+        ]
+      },
+      "pp16384_on": {
+        "tok_s": 1130.061794,
+        "seconds": 14.4983222,
+        "dispatch": [
+          "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+          "load_tensors: offloaded 49/49 layers to GPU",
+          "PP_FUSION_ACTIVE keys=512 queries=512"
+        ]
+      }
+    }
+  }
+}

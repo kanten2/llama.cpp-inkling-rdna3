@@ -44,6 +44,7 @@ try {
     }
     $env:GGML_HIP_IQ4_GATE4 = '1'
     $env:GGML_HIP_DISABLE_SCALE_ADD_FUSION = '1'
+    if (!$env:INKLING_PP_FUSE) { $env:INKLING_PP_FUSE = '1' }
     $devices = & $server --list-devices
     if ($LASTEXITCODE) { throw $msg.runtime }
     $device = $devices | Select-String '^\s*ROCm(\d+):\s*(AMD Radeon RX 7900 XTX)\s*\(' | Select-Object -First 1

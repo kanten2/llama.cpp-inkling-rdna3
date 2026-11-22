@@ -15,6 +15,8 @@ One RX 7900 XTX (gfx1100), Windows ROCm, b12606 with the loop-scale fix (#32704)
 
 Batch 2,048, microbatch 512, K/V both F16, Flash Attention auto, context depth zero, 16 CPU threads, all 49 layers on one GPU. Each input length ran in four processes in this order: off ×2, on ×3, on ×2, off ×3. The official bench executable reports its base commit in the JSON. [Raw benchmark JSON](raw/) · [GPU and fusion dispatch records](dispatch.json)
 
+The preview 3 ZIP was checked separately after extraction. The package record identifies the ZIP by SHA-256 and includes browser chat answers, `bench.cmd` generation rates and one timed pp16384 run per mode for each GGUF. [Windows package verification](preview-3-package.json)
+
 | GGUF | SHA-256 |
 |---|---|
 | ggml-org IQ4_NL | `cbdf3fa9dc50a4124977980f37da4f1fa764b0cfe800d275cd43d26ce2a81af4` |

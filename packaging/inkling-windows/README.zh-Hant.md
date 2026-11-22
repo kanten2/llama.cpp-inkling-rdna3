@@ -4,7 +4,7 @@
 
 ## 用 ZIP 啟動聊天與測速
 
-1. 從 [Windows 預覽版](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.1.0-preview.2)下載 `inkling-rdna3-windows-gfx1100.zip`，在檔案總管中選取「全部解壓縮」，然後開啟解壓縮後的資料夾。
+1. 從 [Windows 預覽版](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.1.0-preview.3)下載 `inkling-rdna3-windows-gfx1100.zip`，在檔案總管中選取「全部解壓縮」，然後開啟解壓縮後的資料夾。
 2. 準備 [ggml-org IQ4_NL](https://huggingface.co/ggml-org/Inkling-2-Mini-GGUF) 或 [Unsloth Mainline_Support UD-Q4_K_M](https://huggingface.co/unsloth/Inkling-2-Mini-GGUF/tree/main/Mainline_Support) 的文字模型。使用 Unsloth 版時，請選擇 `Mainline_Support` 資料夾內的檔案，並將副檔名從 `.gguf_file` 改為 `.gguf`。模型可留在原來的位置。
 3. 將 GGUF 拖曳到 **chat.cmd** 上。載入完成後，預設瀏覽器會開啟本機聊天頁面，上下文長度為 4,096 個 token。聊天時請保持主控台視窗開啟。結束時，在該視窗按 Ctrl+C 停止伺服器。
 4. 測速前，請先關閉占用顯示記憶體的其他推論工作，再將同一個 GGUF 拖曳到 **bench.cmd** 上。視窗會顯示顯示卡名稱及 **tg768 生成速度（tok/s）**。暖機後，從上下文深度 0 開始，計時生成 768 個 token，共測一次。結果不含模型載入時間。自動執行時可設定 `INKLING_NO_PAUSE=1` 跳過按鍵等待。
@@ -22,7 +22,9 @@ $env:INKLING_LANG = 'zh-Hant'
 
 ## 實測結果
 
-在 RX 7900 XTX 上，tg768 的五次測量取平均後，IQ4_NL 由官方 b12606 的 **46.55 tok/s** 提升至最佳化版本的 **54.53 tok/s**。Mainline_Support UD-Q4_K_M 由僅修正迴圈層縮放的 **48.63 tok/s** 提升至 **56.67 tok/s**。兩種 IQ4_NL 最佳化設定都答對了全部 25 道日文題。[測速資料與答案驗證](https://github.com/kanten2/llama.cpp-inkling-rdna3/tree/v0.1.0-preview.2/benchmarks/inkling-rocm)
+壓縮檔預設啟用預填充運算融合。以 16,384 個輸入 token 各測量五次，IQ4_NL 的平均處理時間從 18.54 秒縮短至 13.53 秒，UD-Q4_K_M 從 18.54 秒縮短至 13.89 秒。聊天啟動器的上下文長度為 4,096 個 token。要比較兩種模式，請先在 PowerShell 中設定 `$env:INKLING_PP_FUSE = '0'`，再執行 CMD。設為 `'1'` 即可重新啟用。 [預填充測速結果與 16K 重現步驟](https://github.com/kanten2/llama.cpp-inkling-rdna3/tree/v0.1.0-preview.3/benchmarks/inkling-rocm/prefill)
+
+在 RX 7900 XTX 上，tg768 的五次測量取平均後，IQ4_NL 由官方 b12606 的 **46.55 tok/s** 提升至最佳化版本的 **54.53 tok/s**。Mainline_Support UD-Q4_K_M 由僅修正迴圈層縮放的 **48.63 tok/s** 提升至 **56.67 tok/s**。兩種 IQ4_NL 最佳化設定都答對了全部 25 道日文題。[測速資料與答案驗證](https://github.com/kanten2/llama.cpp-inkling-rdna3/tree/v0.1.0-preview.3/benchmarks/inkling-rocm)
 
 ## 從原始碼建置
 
