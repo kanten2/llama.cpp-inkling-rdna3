@@ -4,6 +4,8 @@
 
 **[v0.2.0](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.0)** · Windows x64 · Radeon RX 7900 XTX. Long-prompt WMMA Attention is included and defaults to off.
 
+![v0.2.0 benchmark on RX 7900 XTX. Request time fell from 35.88 s to 32.29 s by default and to 31.64 s with WMMA.](benchmarks/inkling-rocm/charts/inkling-rdna3-v0.2.0-en.png)
+
 IQ4_NL, 16,384 input tokens and 1,000 generated tokens. Each configuration ran the same two prompts once each. Values are means of warm requests.
 
 | Mode | Prefill (tok/s) | Decode (tok/s) | Request (s) |

@@ -4,6 +4,8 @@
 
 **[v0.2.0](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.0)** · Windows x64・Radeon RX 7900 XTX向け。長文入力用のWMMA Attentionを同梱し、初期設定はOFFです。
 
+![RX 7900 XTXでのv0.2.0の性能比較。全体時間は前版の35.88秒から標準設定で32.29秒、WMMA有効で31.64秒に短縮。](benchmarks/inkling-rocm/charts/inkling-rdna3-v0.2.0-ja.png)
+
 IQ4_NLで16,384トークンを入力し、1,000トークンを生成しました。全設定で同じ2入力を各1回測定したウォーム時の平均です。
 
 | 設定 | 入力 (tok/s) | 生成 (tok/s) | リクエスト全体 (秒) |
