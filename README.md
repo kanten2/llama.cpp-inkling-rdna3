@@ -1,8 +1,10 @@
 # Inkling 2 Mini on Windows ROCm
 
-This Windows ROCm fork of llama.cpp b12606 speeds up **Inkling 2 Mini on one Radeon RX 7900 XTX**. At 16,384 input tokens, prefill fusion cut prompt processing from **18.54 to 13.53 seconds** for IQ4_NL and **18.54 to 13.89 seconds** for Unsloth UD-Q4_K_M. The Windows ZIP enables fusion automatically. [Windows preview downloads](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases)
+[English](README.md) · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-Setup and build guides · [English](packaging/inkling-windows/README.md) · [日本語](packaging/inkling-windows/README.ja.md) · [简体中文](packaging/inkling-windows/README.zh-Hans.md) · [繁體中文](packaging/inkling-windows/README.zh-Hant.md)
+**v0.1.0** is the first stable Windows x64 release of this llama.cpp b12606 fork for **Inkling 2 Mini on one Radeon RX 7900 XTX**. At 16,384 input tokens, prefill fusion cut prompt processing from **18.54 to 13.53 seconds** for IQ4_NL and **18.54 to 13.89 seconds** for Unsloth UD-Q4_K_M. The Windows ZIP enables fusion automatically. [Download v0.1.0 for Windows](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.1.0)
+
+ZIP and source build guides · [English](packaging/inkling-windows/README.md) · [日本語](packaging/inkling-windows/README.ja.md) · [简体中文](packaging/inkling-windows/README.zh-Hans.md) · [繁體中文](packaging/inkling-windows/README.zh-Hant.md)
 
 ## What the fork optimizes
 
@@ -38,7 +40,7 @@ The earlier IQ4_NL decode benchmark compares the official b12606 distribution wi
 
 You need Windows x64, a Radeon RX 7900 XTX with a compatible AMD driver, and the Visual C++ x64 runtime. The ZIP includes the ROCm runtime. [Microsoft Visual C++ x64 runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe)
 
-1. Download `inkling-rdna3-windows-gfx1100.zip` and choose **Extract All** in Explorer. The release also includes the ZIP's SHA-256 checksum. [Windows preview downloads](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases)
+1. Download `inkling-rdna3-windows-gfx1100.zip` and choose **Extract All** in Explorer. The release also includes the ZIP's SHA-256 checksum. [Download v0.1.0 for Windows](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.1.0)
 2. Download a compatible Inkling 2 Mini text model separately. For the Unsloth version, choose the file in `Mainline_Support` and rename its extension from `.gguf_file` to `.gguf`. [IQ4_NL model](https://huggingface.co/ggml-org/Inkling-2-Mini-GGUF) · [Unsloth UD-Q4_K_M model](https://huggingface.co/unsloth/Inkling-2-Mini-GGUF/tree/main/Mainline_Support)
 3. Drag the GGUF onto **`chat.cmd`**. Once the model loads, your default browser opens a local text chat with a 4,096-token context. Keep the console open while chatting.
 4. To check speed, press **Ctrl+C in the chat console** to stop the server, then drag the same GGUF onto **`bench.cmd`**. It prints the GPU name and the speed of one timed 768-token generation after warm-up.

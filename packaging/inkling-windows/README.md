@@ -2,9 +2,11 @@
 
 [English](README.md) · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
+Version **v0.1.0** supports Windows x64 with one Radeon RX 7900 XTX. The ZIP contains the same inference binaries as preview 3. Both IQ4_NL and Unsloth Mainline_Support UD-Q4_K_M were tested on this GPU.
+
 ## Use the ZIP
 
-1. Download `inkling-rdna3-windows-gfx1100.zip` from the [Windows preview release](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.1.0-preview.3). In Explorer, choose **Extract All** and open the extracted folder.
+1. Download `inkling-rdna3-windows-gfx1100.zip` from the [v0.1.0 Windows release](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.1.0). In Explorer, choose **Extract All** and open the extracted folder.
 2. Use your own text model: [ggml-org IQ4_NL](https://huggingface.co/ggml-org/Inkling-2-Mini-GGUF) or [Unsloth Mainline_Support UD-Q4_K_M](https://huggingface.co/unsloth/Inkling-2-Mini-GGUF/tree/main/Mainline_Support). For the latter, rename the downloaded `.gguf_file` to `.gguf`. The model can stay in its own directory.
 3. Drop the model onto **chat.cmd**. After loading, the launcher opens the chat in your default browser at the loopback address printed in the console. Leave the console open while chatting. Press Ctrl+C in it to stop the server and free VRAM. This is a text chat with a 4,096-token context.
 4. To measure generation speed, close other GPU inference sessions and drop the same file onto **bench.cmd**. It prints the selected GPU and **tg768 in tok/s**, then waits for a keypress. Each invocation runs llama-bench's warm-up and one timed 768-token generation at depth zero. Model loading is outside the reported rate. For automation, set `INKLING_NO_PAUSE=1`.
@@ -20,9 +22,9 @@ $env:INKLING_LANG = 'en'
 .\chat.cmd ".\model.gguf"
 ```
 
-The ZIP enables prefill fusion by default. In five-run tests with 16,384 input tokens, IQ4_NL took 13.53 s with fusion on and 18.54 s with it off. UD-Q4_K_M took 13.89 s and 18.54 s, respectively. The chat launcher uses a 4,096-token context. To compare modes, set `$env:INKLING_PP_FUSE = '0'` in PowerShell before launching the CMD, or set it to `'1'` to enable fusion again. [Prefill benchmarks and 16K reproduction steps](https://github.com/kanten2/llama.cpp-inkling-rdna3/tree/v0.1.0-preview.3/benchmarks/inkling-rocm/prefill)
+The ZIP enables prefill fusion by default. In five-run tests with 16,384 input tokens, IQ4_NL took 13.53 s with fusion on and 18.54 s with it off. UD-Q4_K_M took 13.89 s and 18.54 s, respectively. The chat launcher uses a 4,096-token context. To compare modes, set `$env:INKLING_PP_FUSE = '0'` in PowerShell before launching the CMD, or set it to `'1'` to enable fusion again. [Prefill benchmarks and 16K reproduction steps](https://github.com/kanten2/llama.cpp-inkling-rdna3/tree/v0.1.0/benchmarks/inkling-rocm/prefill)
 
-In the five-run tg768 benchmarks, IQ4_NL reached **54.53 tok/s** versus **46.55** with official b12606. Mainline_Support UD-Q4_K_M reached **56.67 tok/s** versus **48.63** with the loop-scale fix alone. Both optimized IQ4_NL settings answered **25/25 Japanese questions** correctly. [Measurements and answer checks](https://github.com/kanten2/llama.cpp-inkling-rdna3/tree/v0.1.0-preview.3/benchmarks/inkling-rocm)
+In the five-run tg768 benchmarks, IQ4_NL reached **54.53 tok/s** versus **46.55** with official b12606. Mainline_Support UD-Q4_K_M reached **56.67 tok/s** versus **48.63** with the loop-scale fix alone. Both optimized IQ4_NL settings answered **25/25 Japanese questions** correctly. [Measurements and answer checks](https://github.com/kanten2/llama.cpp-inkling-rdna3/tree/v0.1.0/benchmarks/inkling-rocm)
 
 ## Build and package from source
 
