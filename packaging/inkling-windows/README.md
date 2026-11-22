@@ -1,15 +1,29 @@
 # Inkling 2 Mini for Windows and RX 7900 XTX
 
+[English](README.md) · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
+
 ## Use the ZIP
 
-1. Download `inkling-rdna3-windows-gfx1100.zip` from the [Windows preview release](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.1.0-preview.1). In Explorer, choose **Extract All** and open the extracted folder.
+1. Download `inkling-rdna3-windows-gfx1100.zip` from the [Windows preview release](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.1.0-preview.2). In Explorer, choose **Extract All** and open the extracted folder.
 2. Use your own text model: [ggml-org IQ4_NL](https://huggingface.co/ggml-org/Inkling-2-Mini-GGUF) or [Unsloth Mainline_Support UD-Q4_K_M](https://huggingface.co/unsloth/Inkling-2-Mini-GGUF/tree/main/Mainline_Support). For the latter, rename the downloaded `.gguf_file` to `.gguf`. The model can stay in its own directory.
 3. Drop the model onto **chat.cmd**. After loading, the launcher opens the chat in your default browser at the loopback address printed in the console. Leave the console open while chatting. Press Ctrl+C in it to stop the server and free VRAM. This is a text chat with a 4,096-token context.
 4. To measure generation speed, close other GPU inference sessions and drop the same file onto **bench.cmd**. It prints the selected GPU and **tg768 in tok/s**, then waits for a keypress. Each invocation runs llama-bench's warm-up and one timed 768-token generation at depth zero. Model loading is outside the reported rate. For automation, set `INKLING_NO_PAUSE=1`.
 
 The launchers select one RX 7900 XTX, use HIP Graphs and enable the optional four-wave IQ4_NL gate/up dispatch when the weights and shape match. The Unsloth model uses its own kernel path. This package includes the gfx1100 ROCm runtime and kernels. The host supplies Windows x64, a compatible AMD graphics driver and the [Microsoft Visual C++ x64 runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe). A Python installation and ROCm development tools are only needed for building the package. The published ZIP checksum is on the release page. Its `SHA256SUMS.txt` covers the files inside it.
 
+## Choose a language
+
+Both launchers follow the Windows display language. To choose English explicitly, open PowerShell in the extracted folder and use the example below. Other accepted values are `ja`, `zh-Hans` and `zh-Hant`. Unrecognized languages use English. The setting applies to this terminal session. The bundled llama.cpp web interface and engine diagnostics retain their upstream wording. Write your question in the language you want to use.
+
+```powershell
+$env:INKLING_LANG = 'en'
+.\chat.cmd ".\model.gguf"
+```
+
+In the five-run tg768 benchmarks, IQ4_NL reached **54.53 tok/s** versus **46.55** with official b12606. Mainline_Support UD-Q4_K_M reached **56.67 tok/s** versus **48.63** with the loop-scale fix alone. Both optimized IQ4_NL settings answered **25/25 Japanese questions** correctly. [Measurements and answer checks](https://github.com/kanten2/llama.cpp-inkling-rdna3/tree/v0.1.0-preview.2/benchmarks/inkling-rocm)
+
 ## Build and package from source
+
 
 Open **Developer PowerShell for VS 2022** with the x64 C++ toolset, Windows SDK, CMake, Ninja and Git available. Use 64-bit Python 3 for packaging. Start at the root of a checkout of this repository at the release tag. Put build dependencies and outputs in a new directory. The commands below use [AMD's ROCm 10.0 wheel index](https://rocm.docs.amd.com/en/docs-10.0.0/install/rocm.html) and the [official b12606 Windows ROCm release](https://github.com/ggml-org/llama.cpp/releases/tag/b12606).
 

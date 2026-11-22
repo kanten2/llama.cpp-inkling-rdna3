@@ -26,9 +26,13 @@ NOTICES = {
 
 def package(args):
     files = {"chat.cmd": HERE/"chat.cmd", "bench.cmd": HERE/"bench.cmd", "tools/launch.ps1": HERE/"launch.ps1",
+             "tools/messages.json": HERE/"messages.json",
              "README.md": HERE/"README.md", "licenses/llama.cpp.txt": ROOT/"LICENSE",
              "licenses/jsonhpp.txt": ROOT/"licenses/LICENSE-jsonhpp",
              "licenses/LLVM-OpenMP.txt": args.official/"LICENSE-LLVM-OpenMP"}
+    for language in ("ja", "zh-Hans", "zh-Hant"):
+        guide = f"README.{language}.md"
+        files[guide] = HERE/guide
     for folder in (ROOT/"vendor").rglob("LICENSE*"):
         if folder.is_file():
             files["licenses/vendor/"+folder.relative_to(ROOT/"vendor").as_posix()] = folder

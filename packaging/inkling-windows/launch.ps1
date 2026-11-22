@@ -3,13 +3,35 @@ $ErrorActionPreference = 'Stop'
 $bin = Join-Path (Split-Path $PSScriptRoot) 'runtime/bin'
 $server = Join-Path $bin 'llama-server.exe'
 $process = $null
+$language = $env:INKLING_LANG
+if (!$language) {
+    # Windows PowerShell's own UI language can differ from the user's Windows display language.
+    Add-Type -Namespace Inkling -Name WindowsLanguage -MemberDefinition @'
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        public static extern ushort GetUserDefaultUILanguage();
+'@
+    try { $language = [Globalization.CultureInfo]::GetCultureInfo([Inkling.WindowsLanguage]::GetUserDefaultUILanguage()).Name }
+    catch [Globalization.CultureNotFoundException] { $language = (Get-UICulture).Name }
+}
+$language = switch -Regex ($language.Replace('_','-')) {
+    '^ja(?:-|$)' { 'ja'; break }
+    '^zh-Hans(?:-|$)' { 'zh-Hans'; break }
+    '^zh-(Hant|TW|HK|MO)(?:-|$)' { 'zh-Hant'; break }
+    '^zh(?:-|$)' { 'zh-Hans'; break }
+    default { 'en' }
+}
+$catalog = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'messages.json') -Encoding UTF8 -Raw | ConvertFrom-Json
+$msg = $catalog.$language
+$encodingBefore = [Console]::OutputEncoding
+$failed = $false
 try {
+    [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
     if (!$env:INKLING_MODEL -or !(Test-Path -LiteralPath $env:INKLING_MODEL -PathType Leaf)) {
-        throw "Drop an Inkling 2 Mini .gguf model onto $($Mode.ToLower()).cmd."
+        throw ($msg.drop -f $Mode.ToLowerInvariant())
     }
     $model = Get-Item -LiteralPath $env:INKLING_MODEL
     if ($model.Extension -ne '.gguf' -or $model.Name -like 'mmproj*') {
-        throw 'Select the text model .gguf. Rename Mainline_Support .gguf_file to .gguf first.'
+        throw $msg.select
     }
     Set-Location -LiteralPath $bin
     $env:PATH = "$bin;$env:SystemRoot\System32;$env:SystemRoot"
@@ -23,24 +45,24 @@ try {
     $env:GGML_HIP_IQ4_GATE4 = '1'
     $env:GGML_HIP_DISABLE_SCALE_ADD_FUSION = '1'
     $devices = & $server --list-devices
-    if ($LASTEXITCODE) { throw 'Cannot load the runtime. Check the AMD driver and x64 VC++ runtime.' }
+    if ($LASTEXITCODE) { throw $msg.runtime }
     $device = $devices | Select-String '^\s*ROCm(\d+):\s*(AMD Radeon RX 7900 XTX)\s*\(' | Select-Object -First 1
-    if (!$device) { throw 'RX 7900 XTX was not found by the bundled ROCm backend.' }
+    if (!$device) { throw $msg.gpuMissing }
     $env:HIP_VISIBLE_DEVICES = $device.Matches[0].Groups[1].Value
-    Write-Host "GPU: $($device.Matches[0].Groups[2].Value)"
-    Write-Host "Model: $($model.Name)"
+    Write-Host ($msg.gpu -f $device.Matches[0].Groups[2].Value)
+    Write-Host ($msg.model -f $model.Name)
 
     if ($Mode -eq 'Bench') {
-        Write-Host 'Running tg768 (warm-up and one timed run)...'
+        Write-Host $msg.warmup
         $json = & (Join-Path $bin 'llama-bench.exe') -m $model.FullName -dev ROCm0 -sm none -mg 0 -ngl 99 -t 16 `
             -b 2048 -ub 512 -fa auto -d 0 -p 0 -n 768 -r 1 -o json
-        if ($LASTEXITCODE) { throw "llama-bench exited with code $LASTEXITCODE." }
+        if ($LASTEXITCODE) { throw ($msg.benchExit -f $LASTEXITCODE) }
         $rows = @(($json -join [Environment]::NewLine) | ConvertFrom-Json | ForEach-Object { $_ })
         if ($rows.Count -ne 1 -or $rows[0].n_prompt -ne 0 -or $rows[0].n_gen -ne 768 -or
             $rows[0].devices -ne 'ROCm0' -or $rows[0].gpu_info -notmatch 'RX 7900 XTX' -or $rows[0].avg_ts -le 0) {
-            throw 'The benchmark did not return the requested GPU and workload.'
+            throw $msg.mismatch
         }
-        Write-Host ('tg768: {0:F2} tok/s' -f $rows[0].avg_ts)
+        Write-Host ($msg.rate -f $rows[0].avg_ts)
     } else {
         # Pick a free loopback port so an existing chat can keep its own port.
         $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
@@ -49,6 +71,7 @@ try {
         $url = "http://127.0.0.1:$port"
         $arguments = @('-m', ('"' + $model.FullName + '"'), '--alias', 'inkling-2-mini', '--host', '127.0.0.1',
                        '--port', $port, '-c', 4096, '-np', 1, '-ngl', 99, '--device', 'ROCm0', '--jinja', '--offline')
+        Write-Host $msg.loading
         $process = Start-Process -FilePath $server -WorkingDirectory $bin -ArgumentList $arguments -NoNewWindow -PassThru
         $ready = $false
         $timer = [Diagnostics.Stopwatch]::StartNew()
@@ -59,14 +82,15 @@ try {
             } catch [Net.WebException] {}
             Start-Sleep -Milliseconds 400
         }
-        if (!$ready -or $process.HasExited) { throw "Server failed to become ready. Check free VRAM and the messages above." }
-        Write-Host "Local chat: $url"
-        Write-Host 'Press Ctrl+C here to stop the server before benchmarking.'
+        if (!$ready -or $process.HasExited) { throw $msg.notReady }
+        Write-Host ($msg.url -f $url)
+        Write-Host $msg.stop
         Start-Process -FilePath $url
         $process.WaitForExit()
-        if ($process.ExitCode) { throw "Server exited with code $($process.ExitCode)." }
+        if ($process.ExitCode) { throw ($msg.serverExit -f $process.ExitCode) }
     }
 } catch {
+    $failed = $true
     [Console]::Error.WriteLine($_.Exception.Message)
     exit 1
 } finally {
@@ -74,4 +98,6 @@ try {
         if (!$process.HasExited) { $process.Kill(); $process.WaitForExit() }
         $process.Dispose()
     }
+    if (!$env:INKLING_NO_PAUSE -and ($failed -or $Mode -eq 'Bench')) { Write-Host $msg.pause }
+    [Console]::OutputEncoding = $encodingBefore
 }
