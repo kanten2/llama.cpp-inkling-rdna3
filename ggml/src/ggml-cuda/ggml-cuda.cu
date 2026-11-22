@@ -5395,6 +5395,92 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
     return 0;
 }
 
+#ifdef GGML_USE_HIP
+// Each lane gathers the bias for one key and stores it directly in [key, query, head] order.
+static __global__ void inkling_gather_permuted_bias(const uint32_t * table,
+                                                    const int32_t *  ids,
+                                                    uint32_t *       out,
+                                                    int              keys,
+                                                    int              queries,
+                                                    int              table_row,
+                                                    int              table_query,
+                                                    int              idx_query) {
+    const int key = blockIdx.x * blockDim.x + threadIdx.x;
+    if (key >= keys) {
+        return;
+    }
+    const int        query = blockIdx.y;
+    const int        row   = ids[key + query * idx_query];
+    const uint32_t * data  = table + query * table_query + row * table_row;
+    const int        dest  = key + query * keys;
+#pragma unroll
+    for (int h = 0; h < 24; h++) {
+        out[dest + h * keys * queries] = data[h];
+    }
+}
+
+static bool inkling_try_fuse_prefill_bias(ggml_backend_cuda_context * ctx, ggml_cgraph * g, int & i) {
+    static const bool enabled = [] {
+        const char * value = std::getenv("INKLING_PP_FUSE");
+        return value && strcmp(value, "1") == 0 && !std::getenv("GGML_CUDA_DISABLE_FUSION");
+    }();
+    if (!enabled || i + 3 >= g->n_nodes || g->nodes[i]->op != GGML_OP_GET_ROWS) {
+        return false;
+    }
+    const ggml_tensor * gather  = g->nodes[i];
+    const ggml_tensor * reshape = g->nodes[i + 1];
+    const ggml_tensor * perm    = g->nodes[i + 2];
+    ggml_tensor *       dst     = g->nodes[i + 3];
+    if (reshape->op != GGML_OP_RESHAPE || perm->op != GGML_OP_PERMUTE || dst->op != GGML_OP_CONT ||
+        reshape->src[0] != gather || perm->src[0] != reshape || dst->src[0] != perm ||
+        strncmp(dst->name, "kq_b-", 5) != 0) {
+        return false;
+    }
+    const ggml_tensor * table   = gather->src[0];
+    const ggml_tensor * ids     = gather->src[1];
+    const int64_t       keys    = gather->ne[1];
+    const int64_t       queries = gather->ne[2];
+    if (gather->type != GGML_TYPE_F32 || dst->type != GGML_TYPE_F32 || table->type != GGML_TYPE_F32 ||
+        ids->type != GGML_TYPE_I32 || !ggml_is_contiguous(gather) || !ggml_is_contiguous(dst) ||
+        !ggml_are_same_shape(reshape, gather) || gather->ne[0] != 24 || gather->ne[3] != 1 || queries <= 1 ||
+        queries > 2048 || keys < 1 || keys > 32768 || dst->ne[0] != keys || dst->ne[1] != queries || dst->ne[2] != 24 ||
+        dst->ne[3] != 1 || perm->nb[0] != gather->nb[1] || perm->nb[1] != gather->nb[2] ||
+        perm->nb[2] != gather->nb[0] || table->nb[0] != 4 || ids->nb[0] != 4 || table->ne[0] != 24 ||
+        table->ne[2] != queries || table->ne[3] != 1 || ids->ne[0] != keys || ids->ne[1] != queries ||
+        ids->ne[2] != 1 || ids->ne[3] != 1 || ggml_nbytes(table) > INT32_MAX || ggml_nbytes(ids) > INT32_MAX) {
+        return false;
+    }
+    if (!GGML_CUDA_CC_IS_RDNA3_0(ggml_cuda_info().devices[ctx->device].cc)) {
+        return false;
+    }
+    if (!ggml_can_fuse_subgraph(g, i, { GGML_OP_GET_ROWS, GGML_OP_RESHAPE, GGML_OP_PERMUTE, GGML_OP_CONT },
+                                { i + 3 })) {
+        return false;
+    }
+    // The scheduler may reuse storage previously occupied by the lookup table or indices.
+    auto overlap = [](const ggml_tensor * a, const ggml_tensor * b) {
+        auto p = (uintptr_t) a->data, q = (uintptr_t) b->data;
+        return p < q + ggml_nbytes(b) && q < p + ggml_nbytes(a);
+    };
+    if (overlap(dst, table) || overlap(dst, ids)) {
+        return false;
+    }
+    const dim3 grid((keys + 127) / 128, queries, 1);
+    inkling_gather_permuted_bias<<<grid, 128, 0, ctx->stream()>>>(
+        (const uint32_t *) table->data, (const int32_t *) ids->data, (uint32_t *) dst->data, keys, queries,
+        table->nb[1] / 4, table->nb[2] / 4, ids->nb[1] / 4);
+    // Log only after the specialization actually matches.
+    static const bool announced = [keys, queries]() {
+        GGML_LOG_INFO("PP_FUSION_ACTIVE keys=%lld queries=%lld\n", (long long) keys, (long long) queries);
+        return true;
+    }();
+    GGML_UNUSED(announced);
+    i += 3;
+    return true;
+}
+
+#endif
+
 static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph * cgraph, const bool use_cuda_graph, const bool cuda_graph_update_required, const void * graph_key) {
     bool graph_evaluated_or_captured = false;
 
@@ -5567,6 +5653,11 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                     continue;
                 }
 
+#ifdef GGML_USE_HIP
+                if (!is_concurrent_event_active && inkling_try_fuse_prefill_bias(cuda_ctx, cgraph, i)) {
+                    continue;
+                }
+#endif
                 int nodes_to_skip = ggml_cuda_try_fuse(cuda_ctx, cgraph, i);
 
                 if (nodes_to_skip != 0) {

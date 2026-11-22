@@ -1,0 +1,74 @@
+{
+  "IQ4_NL/pp4096-1-off": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU"
+  ],
+  "IQ4_NL/pp4096-2-on": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU",
+    "PP_FUSION_ACTIVE keys=512 queries=512 bitcheck=0"
+  ],
+  "IQ4_NL/pp4096-3-on": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU",
+    "PP_FUSION_ACTIVE keys=512 queries=512 bitcheck=0"
+  ],
+  "IQ4_NL/pp4096-4-off": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU"
+  ],
+  "IQ4_NL/pp16384-1-off": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU"
+  ],
+  "IQ4_NL/pp16384-2-on": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU",
+    "PP_FUSION_ACTIVE keys=512 queries=512 bitcheck=0"
+  ],
+  "IQ4_NL/pp16384-3-on": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU",
+    "PP_FUSION_ACTIVE keys=512 queries=512 bitcheck=0"
+  ],
+  "IQ4_NL/pp16384-4-off": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU"
+  ],
+  "UD-Q4_K_M/pp4096-1-off": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU"
+  ],
+  "UD-Q4_K_M/pp4096-2-on": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU",
+    "PP_FUSION_ACTIVE keys=512 queries=512"
+  ],
+  "UD-Q4_K_M/pp4096-3-on": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU",
+    "PP_FUSION_ACTIVE keys=512 queries=512"
+  ],
+  "UD-Q4_K_M/pp4096-4-off": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU"
+  ],
+  "UD-Q4_K_M/pp16384-1-off": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU"
+  ],
+  "UD-Q4_K_M/pp16384-2-on": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU",
+    "PP_FUSION_ACTIVE keys=512 queries=512"
+  ],
+  "UD-Q4_K_M/pp16384-3-on": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU",
+    "PP_FUSION_ACTIVE keys=512 queries=512"
+  ],
+  "UD-Q4_K_M/pp16384-4-off": [
+    "  Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB",
+    "load_tensors: offloaded 49/49 layers to GPU"
+  ]
+}

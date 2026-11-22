@@ -1,0 +1,25 @@
+{
+  "ubatch": 512,
+  "answer": "73841 52973 84627",
+  "finish_reason": "stop",
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 14999,
+    "prompt_ms": 17728.766,
+    "prompt_per_token_ms": 1.1819965331022069,
+    "prompt_per_second": 846.0261701237413,
+    "predicted_n": 149,
+    "predicted_ms": 3052.881,
+    "predicted_per_token_ms": 20.627574324324325,
+    "predicted_per_second": 48.478797568591766
+  },
+  "usage": {
+    "completion_tokens": 149,
+    "prompt_tokens": 14999,
+    "total_tokens": 15148,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "correct": true
+}
