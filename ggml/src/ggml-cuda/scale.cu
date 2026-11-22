@@ -1,0 +1,113 @@
+#include "scale.cuh"
+#include "convert.cuh"
+#ifdef GGML_USE_HIP
+#include "reduce_rows.cuh"
+#endif
+
+#define MAX_GRIDDIM_X 0x7FFFFFFF
+
+// src and dst may be views: rows are contiguous, dims 1..3 follow the strides (in elements).
+template <typename T>
+static __global__ void scale_f32(const T * x, T * dst, const float scale, const float bias, const uint32_t k,
+                                 const uint3 ne0, const uint3 ne1, const uint3 ne2,
+                                 const uint32_t s01, const uint32_t s02, const uint32_t s03,
+                                 const uint32_t s1,  const uint32_t s2,  const uint32_t s3) {
+    ggml_cuda_pdl_lc();
+    const uint32_t i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    ggml_cuda_pdl_sync();
+    if (i >= k) {
+        return;
+    }
+
+    const uint2 d0 = fast_div_modulo(i,    ne0); // <i / ne0, i0>
+    const uint2 d1 = fast_div_modulo(d0.x, ne1); // <i / (ne0*ne1), i1>
+    const uint2 d2 = fast_div_modulo(d1.x, ne2); // <i3, i2>
+
+    const size_t i_src = d0.y + size_t(d1.y)*s01 + size_t(d2.y)*s02 + size_t(d2.x)*s03;
+    const size_t i_dst = d0.y + size_t(d1.y)*s1  + size_t(d2.y)*s2  + size_t(d2.x)*s3;
+
+    dst[i_dst] = ggml_cuda_cast<T>(scale * ggml_cuda_cast<float>(x[i_src]) + bias);
+}
+
+template <typename T>
+static void scale_f32_cuda(const T * x, T * dst, const float scale, const float bias, const ggml_tensor * src0, const ggml_tensor * t, cudaStream_t stream) {
+    const int64_t k  = ggml_nelements(src0);
+    const size_t  ts = sizeof(T);
+    GGML_ASSERT(k <= std::numeric_limits<uint32_t>::max());
+
+    const uint3 ne0 = init_fastdiv_values(src0->ne[0]);
+    const uint3 ne1 = init_fastdiv_values(src0->ne[1]);
+    const uint3 ne2 = init_fastdiv_values(src0->ne[2]);
+
+    const int64_t num_blocks = (k + CUDA_SCALE_BLOCK_SIZE - 1) / CUDA_SCALE_BLOCK_SIZE;
+    const ggml_cuda_kernel_launch_params launch_params = ggml_cuda_kernel_launch_params(MIN(MAX_GRIDDIM_X, num_blocks), CUDA_SCALE_BLOCK_SIZE, 0, stream);
+    ggml_cuda_kernel_launch(scale_f32<T>, launch_params, x, dst, scale, bias, (uint32_t) k, ne0, ne1, ne2,
+        src0->nb[1]/ts, src0->nb[2]/ts, src0->nb[3]/ts,
+        t->nb[1]/ts,    t->nb[2]/ts,    t->nb[3]/ts);
+}
+
+#ifdef GGML_USE_HIP
+static __global__ void row_clip_f32(const float * x, float * dst, int width, float threshold) {
+    // Match the small-row SUM_ROWS reduction: one 512-thread block per row.
+    const int col = threadIdx.x;
+    const int offset = blockIdx.x * width + col;
+    const float value = col < width ? x[offset] : 0.0f;
+    // Materialize FP32 squares before the reduction, as in SQR followed by SUM_ROWS.
+    __shared__ float squares[128];
+    __shared__ float factor;
+    if (col < width) {
+        squares[col] = value * value;
+    }
+    __syncthreads();
+    const float sum = reduce_row_f32(squares, width);
+    if (col == 0) {
+        factor = fminf(fmaxf(threshold / (sqrtf(sum) + 1e-6f), 0.0f), 1.0f);
+    }
+    __syncthreads();
+    if (col < width) {
+        dst[offset] = value * factor;
+    }
+}
+
+void ggml_cuda_op_row_clip(ggml_backend_cuda_context & ctx, const ggml_tensor * x, ggml_tensor * dst, float threshold) {
+    const auto params = ggml_cuda_kernel_launch_params(x->ne[1], 512, 0, ctx.stream());
+    ggml_cuda_kernel_launch(row_clip_f32, params, (const float *) x->data, (float *) dst->data, (int) x->ne[0], threshold);
+}
+
+static __global__ void scale_add_f32(const float * x, const float * residual, float * dst, float scale, float bias, uint32_t count) {
+    const uint32_t i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < count) {
+        dst[i] = residual[i] + fmaf(scale, x[i], bias);
+    }
+}
+
+void ggml_cuda_op_scale_add(ggml_backend_cuda_context & ctx, const ggml_tensor * scale, ggml_tensor * add) {
+    const auto count = static_cast<uint32_t>(ggml_nelements(add));
+    const auto blocks = (uint64_t(count) + CUDA_SCALE_BLOCK_SIZE - 1) / CUDA_SCALE_BLOCK_SIZE;
+    const auto params = ggml_cuda_kernel_launch_params(blocks, CUDA_SCALE_BLOCK_SIZE, 0, ctx.stream());
+    ggml_cuda_kernel_launch(scale_add_f32, params, (const float *) scale->src[0]->data,
+        (const float *) add->src[0]->data, (float *) add->data,
+        ggml_get_op_params_f32(scale, 0), ggml_get_op_params_f32(scale, 1), count);
+}
+#endif
+
+void ggml_cuda_op_scale(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+    const ggml_tensor * src0 = dst->src[0];
+    cudaStream_t stream = ctx.stream();
+
+    GGML_ASSERT(src0->type == GGML_TYPE_F32 || src0->type == GGML_TYPE_BF16);
+    GGML_ASSERT(dst->type == src0->type);
+    GGML_ASSERT(ggml_is_contiguous_rows(src0) && ggml_is_contiguous_rows(dst));
+
+    float scale;
+    float bias;
+    memcpy(&scale, (float *) dst->op_params + 0, sizeof(float));
+    memcpy(&bias,  (float *) dst->op_params + 1, sizeof(float));
+
+    if (src0->type == GGML_TYPE_BF16) {
+        scale_f32_cuda((const nv_bfloat16 *) src0->data, (nv_bfloat16 *) dst->data, scale, bias, src0, dst, stream);
+    } else {
+        scale_f32_cuda((const float *) src0->data, (float *) dst->data, scale, bias, src0, dst, stream);
+    }
+}

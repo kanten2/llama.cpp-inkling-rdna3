@@ -1,0 +1,1 @@
+raw/*.json -text whitespace=trailing-space,cr-at-eol

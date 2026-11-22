@@ -1,0 +1,72 @@
+{
+  "all": {
+    "eight": {
+      "n": 25,
+      "correct": 25,
+      "wall_sum_s": 430.5507262000756,
+      "wall_mean_s": 17.222029048003023,
+      "wall_median_s": 12.359782900006394,
+      "completion_tokens": 20507,
+      "aggregate_decode_tok_s": 48.61901558999663
+    },
+    "four": {
+      "n": 25,
+      "correct": 25,
+      "wall_sum_s": 365.7609988999757,
+      "wall_mean_s": 14.630439955999027,
+      "wall_median_s": 12.34185470000375,
+      "completion_tokens": 17780,
+      "aggregate_decode_tok_s": 49.81728683500977
+    }
+  },
+  "both_correct": {
+    "eight": {
+      "n": 25,
+      "correct": 25,
+      "wall_sum_s": 430.5507262000756,
+      "wall_mean_s": 17.222029048003023,
+      "wall_median_s": 12.359782900006394,
+      "completion_tokens": 20507,
+      "aggregate_decode_tok_s": 48.61901558999663
+    },
+    "four": {
+      "n": 25,
+      "correct": 25,
+      "wall_sum_s": 365.7609988999757,
+      "wall_mean_s": 14.630439955999027,
+      "wall_median_s": 12.34185470000375,
+      "completion_tokens": 17780,
+      "aggregate_decode_tok_s": 49.81728683500977
+    }
+  },
+  "by_category": {
+    "計算": {
+      "eight": 5,
+      "four": 5
+    },
+    "論理": {
+      "eight": 5,
+      "four": 5
+    },
+    "コード": {
+      "eight": 5,
+      "four": 5
+    },
+    "データ集計": {
+      "eight": 5,
+      "four": 5
+    },
+    "仕様の読み取り": {
+      "eight": 5,
+      "four": 5
+    }
+  },
+  "four_faster_count": 21,
+  "win_loss": {
+    "both_right": 25,
+    "eight_only": 0,
+    "four_only": 0,
+    "both_wrong": 0
+  },
+  "truncations": []
+}

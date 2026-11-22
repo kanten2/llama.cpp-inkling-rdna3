@@ -1,0 +1,103 @@
+{
+  "model_filename": "Inkling-2-Mini-IQ4_NL.gguf",
+  "model_bytes": 17627940768,
+  "model_sha256": "cbdf3fa9dc50a4124977980f37da4f1fa764b0cfe800d275cd43d26ce2a81af4",
+  "arguments_after_model": [
+    "-dev",
+    "ROCm0",
+    "-sm",
+    "none",
+    "-mg",
+    "0",
+    "-ngl",
+    "99",
+    "-t",
+    "16",
+    "-b",
+    "2048",
+    "-ub",
+    "512",
+    "-fa",
+    "auto",
+    "-d",
+    "0",
+    "-p",
+    "512",
+    "-n",
+    "128,768",
+    "-r",
+    "1",
+    "-o",
+    "json",
+    "-v"
+  ],
+  "round_order": [
+    [
+      "official",
+      "eight",
+      "four"
+    ],
+    [
+      "eight",
+      "four",
+      "official"
+    ],
+    [
+      "four",
+      "official",
+      "eight"
+    ],
+    [
+      "official",
+      "four",
+      "eight"
+    ],
+    [
+      "four",
+      "eight",
+      "official"
+    ]
+  ],
+  "common_env": {
+    "HIP_VISIBLE_DEVICES": "0",
+    "GGML_HIP_DISABLE_SCALE_ADD_FUSION": "1",
+    "GGML_CUDA_GRAPH_DEBUG": "1"
+  },
+  "clear_env": [
+    "GGML_CUDA_DISABLE_GRAPHS",
+    "GGML_CUDA_DISABLE_FUSION",
+    "GGML_HIP_DISABLE_ROW_CLIP",
+    "LLAMA_INKLING_DISABLE_MIX_REUSE",
+    "GGML_HIP_DISABLE_CONV_RESIDUAL",
+    "GGML_HIP_DISABLE_CONCAT_HISTORY",
+    "GGML_IQ4_PROFILE_STRIDE",
+    "GGML_IQ4_PROFILE_STRIPE",
+    "GGML_HIP_IQ4_GATE4",
+    "ROCR_VISIBLE_DEVICES",
+    "CUDA_VISIBLE_DEVICES",
+    "GGML_BACKEND_PATH"
+  ],
+  "four_wave_env": {
+    "GGML_HIP_IQ4_GATE4": "1"
+  },
+  "binary_sha256": {
+    "official": {
+      "llama-bench.exe": "1002fbffb59c6f52e8b11082e35f055a496ded1ae86f5c760258ba58a63cecc1",
+      "llama-bench-impl.dll": "2c9c13cb2f11bb93740d26f9286f6922da753d92b0607884f6827c088b41b8e9",
+      "llama.dll": "0110ca93c47629bf5c41a30bb8b4232f3ddc720771a0727b463941505602737e",
+      "ggml.dll": "2dcc36ec7bf96f48206679124fe875c2a8f3e86a4c0438ac17bb6fc24122369d",
+      "ggml-base.dll": "3142d5e5e24a2ae3557f8feeb1388d36ee29ad46ba3338856ba2784a859597ae",
+      "ggml-hip.dll": "2b9d14029dcbfb25af711971632fab0e4977e23f109eb4e4c2a8f7a6d5e51cde",
+      "amdhip64_7.dll": "546fb3d6e2d2194a9526fb94ec2fd3aa5b92a48a7595f04efece80162047ef69"
+    },
+    "optimized": {
+      "llama-bench.exe": "1002fbffb59c6f52e8b11082e35f055a496ded1ae86f5c760258ba58a63cecc1",
+      "llama-bench-impl.dll": "2c9c13cb2f11bb93740d26f9286f6922da753d92b0607884f6827c088b41b8e9",
+      "llama.dll": "6f7c41254ae1d9fe31d9e295bded918f3896333b28ba01b321c5f49bfdb6da6b",
+      "ggml.dll": "2dcc36ec7bf96f48206679124fe875c2a8f3e86a4c0438ac17bb6fc24122369d",
+      "ggml-base.dll": "3142d5e5e24a2ae3557f8feeb1388d36ee29ad46ba3338856ba2784a859597ae",
+      "ggml-hip.dll": "ece66725086982f9c344a27e679a44a481992fe3dc0bf53bda64dba90906e334",
+      "amdhip64_7.dll": "546fb3d6e2d2194a9526fb94ec2fd3aa5b92a48a7595f04efece80162047ef69"
+    }
+  }
+}

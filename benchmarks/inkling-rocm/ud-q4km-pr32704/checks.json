@@ -1,0 +1,242 @@
+{
+  "r1-1-fix-only": {
+    "raw_sha256": "d94f84a46c76e6479dfc91406a2acf2f280846e4e23ee4ac08f8ae7ae6ff2375",
+    "visible_rocm_devices": 1,
+    "layers_offloaded": 49,
+    "four_wave_marker": false,
+    "context_sizes_pp512_tg128_tg768": [
+      512,
+      256,
+      768
+    ],
+    "graph_reuses_pp512_tg128_tg768": [
+      1,
+      127,
+      765
+    ]
+  },
+  "r1-2-eight": {
+    "raw_sha256": "9fddcc06f6f9cb5964f5c53a39d9e98fa738354e185028ae8d7ba5b2aa13b9c9",
+    "visible_rocm_devices": 1,
+    "layers_offloaded": 49,
+    "four_wave_marker": false,
+    "context_sizes_pp512_tg128_tg768": [
+      512,
+      256,
+      768
+    ],
+    "graph_reuses_pp512_tg128_tg768": [
+      1,
+      127,
+      765
+    ]
+  },
+  "r1-3-four": {
+    "raw_sha256": "c0198df58add663f59c88a07487f3920f4f4a01f7f46173cfcde9330485c76bd",
+    "visible_rocm_devices": 1,
+    "layers_offloaded": 49,
+    "four_wave_marker": false,
+    "context_sizes_pp512_tg128_tg768": [
+      512,
+      256,
+      768
+    ],
+    "graph_reuses_pp512_tg128_tg768": [
+      1,
+      127,
+      765
+    ]
+  },
+  "r2-1-eight": {
+    "raw_sha256": "25ae839ebd35f79635f6a13823c3df9515f1dce8e37268b0cd8c6310e451933b",
+    "visible_rocm_devices": 1,
+    "layers_offloaded": 49,
+    "four_wave_marker": false,
+    "context_sizes_pp512_tg128_tg768": [
+      512,
+      256,
+      768
+    ],
+    "graph_reuses_pp512_tg128_tg768": [
+      1,
+      127,
+      765
+    ]
+  },
+  "r2-2-four": {
+    "raw_sha256": "61dfb720e269c46aac2861c91d0d5e4dbe21436c7236fc208d3be971c7eada8a",
+    "visible_rocm_devices": 1,
+    "layers_offloaded": 49,
+    "four_wave_marker": false,
+    "context_sizes_pp512_tg128_tg768": [
+      512,
+      256,
+      768
+    ],
+    "graph_reuses_pp512_tg128_tg768": [
+      1,
+      127,
+      765
+    ]
+  },
+  "r2-3-fix-only": {
+    "raw_sha256": "57471dd50bc9fc1248474ec73b83d88526ce9199fe0d95fa781a8d77e73b5df8",
+    "visible_rocm_devices": 1,
+    "layers_offloaded": 49,
+    "four_wave_marker": false,
+    "context_sizes_pp512_tg128_tg768": [
+      512,
+      256,
+      768
+    ],
+    "graph_reuses_pp512_tg128_tg768": [
+      1,
+      127,
+      765
+    ]
+  },
+  "r3-1-four": {
+    "raw_sha256": "203972155166b8e68d5dd8727d29a918de59d80440246141513f9bd10be60c9d",
+    "visible_rocm_devices": 1,
+    "layers_offloaded": 49,
+    "four_wave_marker": false,
+    "context_sizes_pp512_tg128_tg768": [
+      512,
+      256,
+      768
+    ],
+    "graph_reuses_pp512_tg128_tg768": [
+      1,
+      127,
+      765
+    ]
+  },
+  "r3-2-fix-only": {
+    "raw_sha256": "2a3c1933772ffe61b1ad30c5cabb1c42f688e8b62d277d6045fef19c295626a7",
+    "visible_rocm_devices": 1,
+    "layers_offloaded": 49,
+    "four_wave_marker": false,
+    "context_sizes_pp512_tg128_tg768": [
+      512,
+      256,
+      768
+    ],
+    "graph_reuses_pp512_tg128_tg768": [
+      1,
+      127,
+      765
+    ]
+  },
+  "r3-3-eight": {
+    "raw_sha256": "428ce2f34e4d0e3258e076cebb2bfff998a5213799e367cdfe793c9336337bba",
+    "visible_rocm_devices": 1,
+    "layers_offloaded": 49,
+    "four_wave_marker": false,
+    "context_sizes_pp512_tg128_tg768": [
+      512,
+      256,
+      768
+    ],
+    "graph_reuses_pp512_tg128_tg768": [
+      1,
+      127,
+      765
+    ]
+  },
+  "r4-1-fix-only": {
+    "raw_sha256": "d94ee350d81d385b968b262efc3c8d61f5e50defae07704f713deb2ac030bfc2",
+    "visible_rocm_devices": 1,
+    "layers_offloaded": 49,
+    "four_wave_marker": false,
+    "context_sizes_pp512_tg128_tg768": [
+      512,
+      256,
+      768
+    ],
+    "graph_reuses_pp512_tg128_tg768": [
+      1,
+      127,
+      765
+    ]
+  },
+  "r4-2-four": {
+    "raw_sha256": "4c70aeff3398bbeee07e2801f72edfed634bcb6e746944404f19445323b85abe",
+    "visible_rocm_devices": 1,
+    "layers_offloaded": 49,
+    "four_wave_marker": false,
+    "context_sizes_pp512_tg128_tg768": [
+      512,
+      256,
+      768
+    ],
+    "graph_reuses_pp512_tg128_tg768": [
+      1,
+      127,
+      765
+    ]
+  },
+  "r4-3-eight": {
+    "raw_sha256": "0c81206766e0ea7539ec0a21aacc797f48f7e1e6e3c1b20467b5b8dd1d1a8f90",
+    "visible_rocm_devices": 1,
+    "layers_offloaded": 49,
+    "four_wave_marker": false,
+    "context_sizes_pp512_tg128_tg768": [
+      512,
+      256,
+      768
+    ],
+    "graph_reuses_pp512_tg128_tg768": [
+      1,
+      127,
+      765
+    ]
+  },
+  "r5-1-four": {
+    "raw_sha256": "10cddeb688e2a797c30451da8ae74c90c14ed998d67372bf7a66f298efc5b536",
+    "visible_rocm_devices": 1,
+    "layers_offloaded": 49,
+    "four_wave_marker": false,
+    "context_sizes_pp512_tg128_tg768": [
+      512,
+      256,
+      768
+    ],
+    "graph_reuses_pp512_tg128_tg768": [
+      1,
+      127,
+      765
+    ]
+  },
+  "r5-2-eight": {
+    "raw_sha256": "f892c715c3ac78e76c0896a512ff64ebb01f324977440ab7f9085899d4c6459e",
+    "visible_rocm_devices": 1,
+    "layers_offloaded": 49,
+    "four_wave_marker": false,
+    "context_sizes_pp512_tg128_tg768": [
+      512,
+      256,
+      768
+    ],
+    "graph_reuses_pp512_tg128_tg768": [
+      1,
+      127,
+      765
+    ]
+  },
+  "r5-3-fix-only": {
+    "raw_sha256": "78c700d787c6e25e952c4190ff6edc962c56672f4bf88f10940932339f9f16b5",
+    "visible_rocm_devices": 1,
+    "layers_offloaded": 49,
+    "four_wave_marker": false,
+    "context_sizes_pp512_tg128_tg768": [
+      512,
+      256,
+      768
+    ],
+    "graph_reuses_pp512_tg128_tg768": [
+      1,
+      127,
+      765
+    ]
+  }
+}

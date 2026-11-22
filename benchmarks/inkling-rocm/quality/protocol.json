@@ -1,0 +1,63 @@
+{
+  "suite_sha256": "1390a2d097a375a0779ce80608635971347c11ed032fbb2efcc5a97960ff733a",
+  "backend_sha256": "ece66725086982f9c344a27e679a44a481992fe3dc0bf53bda64dba90906e334",
+  "engine": "llama.cpp b12606 02a714c ROCm gfx1100, HIP Graphs enabled",
+  "model": "Inkling-2-Mini-IQ4_NL.gguf",
+  "seed": 42,
+  "temperature": 0,
+  "parallel": 1,
+  "cache_prompt": false,
+  "ctx_tiers": [
+    4096,
+    8192,
+    16384,
+    32768
+  ],
+  "block_order": [
+    [
+      "A",
+      [
+        "P1",
+        "D1",
+        "C2",
+        "P4",
+        "P3",
+        "L3",
+        "L2",
+        "C3",
+        "D4",
+        "L5",
+        "C4",
+        "P2"
+      ],
+      [
+        "eight",
+        "four"
+      ]
+    ],
+    [
+      "B",
+      [
+        "M2",
+        "D3",
+        "C5",
+        "D2",
+        "M3",
+        "D5",
+        "L1",
+        "P5",
+        "L4",
+        "C1",
+        "M1",
+        "M4",
+        "M5"
+      ],
+      [
+        "four",
+        "eight"
+      ]
+    ]
+  ],
+  "score": "Exact integer or ordered list from final content. Normalize width, whitespace, fences and answer labels. Natural stop required. No partial credit.",
+  "latency": "request start through SSE DONE; already-loaded server, same 32-token warm-up before each block"
+}
