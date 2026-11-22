@@ -4,6 +4,8 @@
 
 **[v0.2.0](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.0)** · 適用於 Windows x64 和 Radeon RX 7900 XTX。長文輸入的 WMMA Attention 預設關閉。
 
+![RX 7900 XTX 上的效能比較。總耗時從 v0.1.0 的 35.88 秒降至 v0.2.0 預設設定的 32.29 秒，啟用 WMMA 後為 31.64 秒。](benchmarks/inkling-rocm/charts/inkling-rdna3-v0.2.0-zh-Hant.png)
+
 IQ4_NL，輸入 16,384 個 token，生成 1,000 個 token。每個設定均在暖機後對相同的兩個輸入各測一次，表中為平均值。
 
 | 設定 | 輸入 (tok/s) | 生成 (tok/s) | 請求耗時 (秒) |
