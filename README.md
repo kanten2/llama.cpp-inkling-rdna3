@@ -2,6 +2,8 @@
 
 ## Inkling 2 Mini on Windows ROCm
 
+**[Download the Windows RX 7900 XTX preview ZIP](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.1.0-preview.1)** and choose **Extract All**. Drag your Inkling 2 Mini IQ4_NL or Mainline_Support UD-Q4_K_M model onto **chat.cmd** to open a local browser chat. Close the chat server and drop the same GGUF onto **bench.cmd** to see the GPU name and tg768 in tok/s. [ZIP usage, requirements and source build instructions](packaging/inkling-windows/README.md)
+
 This fork optimizes single-token decode for Inkling 2 Mini on the Radeon RX 7900 XTX (gfx1100). It builds on upstream b12606. With the same IQ4_NL GGUF, one GPU and HIP Graphs enabled, the four-wave build generated 768 tokens at **54.53 tok/s**, compared with **46.55 tok/s** for the official build (+17.14%).
 
 | llama-bench (mean tok/s over five runs) | Official b12606 | Optimized 8 waves | Optimized 4 waves |
