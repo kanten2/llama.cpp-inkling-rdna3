@@ -1,125 +1,44 @@
-# llama.cpp
+# Inkling 2 Mini on Windows ROCm
 
-[English](README.md) · [日本語](packaging/inkling-windows/README.ja.md) · [简体中文](packaging/inkling-windows/README.zh-Hans.md) · [繁體中文](packaging/inkling-windows/README.zh-Hant.md)
+This fork of llama.cpp b12606 speeds up token generation for **Inkling 2 Mini on a single Radeon RX 7900 XTX**. On Windows with the IQ4_NL model, it generated **54.53 tokens/s**, up **17.14%** from the official build's **46.55 tokens/s** (768 tokens, five-run average). [Download the Windows preview ZIP](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.1.0-preview.2)
 
-## Inkling 2 Mini on Windows ROCm
+Setup and build guides · [English](packaging/inkling-windows/README.md) · [日本語](packaging/inkling-windows/README.ja.md) · [简体中文](packaging/inkling-windows/README.zh-Hans.md) · [繁體中文](packaging/inkling-windows/README.zh-Hant.md)
 
-**[Download the Windows RX 7900 XTX preview ZIP](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.1.0-preview.2)** and choose **Extract All**. Drag your Inkling 2 Mini IQ4_NL or Mainline_Support UD-Q4_K_M model onto **chat.cmd** to open a local browser chat. Close the chat server and drop the same GGUF onto **bench.cmd** to see the GPU name and tg768 in tok/s. The launchers follow your Windows display language. The ZIP includes instructions in English, Japanese, Simplified Chinese and Traditional Chinese. [ZIP usage, language selection and source build instructions](packaging/inkling-windows/README.md)
+## What the fork optimizes
 
-This fork optimizes single-token decode for Inkling 2 Mini on the Radeon RX 7900 XTX (gfx1100). It builds on upstream b12606. With the same IQ4_NL GGUF, one GPU and HIP Graphs enabled, the four-wave build generated 768 tokens at **54.53 tok/s**, compared with **46.55 tok/s** for the official build (+17.14%).
+During generation, the model produces one token at a time. This fork combines GPU operations for row clipping and convolution, and reuses intermediate results shared by multiple layers. For the IQ4_NL model, the ZIP also enables a four-wave GPU kernel for the routed experts' gate and up projections. It uses the same GGUF weights as the official build. [Optimization and profiling notes](benchmarks/inkling-rocm/README.md)
 
-| llama-bench (mean tok/s over five runs) | Official b12606 | Optimized 8 waves | Optimized 4 waves |
+## Measured results
+
+**IQ4_NL on one RX 7900 XTX.** Each cell is the mean of five `llama-bench` runs in tokens/s, with HIP Graphs enabled. Prompt processing stayed near 1,557 tokens/s across all three configurations.
+
+| Workload | Official b12606 | Optimized, 8 waves | Optimized, 4 waves |
 |---|---:|---:|---:|
-| pp512 | 1,557.49 | 1,557.21 | 1,556.51 |
-| tg128 | 46.00 | 52.94 | 54.16 |
-| tg768 | 46.55 | 53.34 | 54.53 |
+| Process a 512-token prompt (pp512) | 1,557.49 | 1,557.21 | 1,556.51 |
+| Generate 128 tokens (tg128) | 46.00 | 52.94 | 54.16 |
+| Generate 768 tokens (tg768) | 46.55 | 53.34 | **54.53** |
 
-Both optimized modes answered **25/25** Japanese exact-answer questions correctly. Total request-to-completion time was **430.55 s with eight waves** and **365.76 s with four waves**. The four-wave run generated 13.3% fewer tokens on these questions. Each mode answered each question once.
+[Benchmark commands, raw JSON and standard deviations](benchmarks/inkling-rocm/llama-bench-b12606/README.md)
 
-On Unsloth Mainline_Support **UD-Q4_K_M**, all three configurations included the upstream looped expert-scale fix (#32704) and answered the same five test questions correctly. The optimized default reached **56.67 tok/s** on tg768, up **16.54%** from **48.63 tok/s** with the fix alone. The IQ4_NL-specific four-wave kernel activated in **0/5** UD benchmark processes with the flag set. [Side-by-side results, dispatch logs and reproduction](benchmarks/inkling-rocm/ud-q4km-pr32704/README.md)
+**Answer checks.** Both optimized modes answered **25/25** Japanese questions correctly. Each question ran once per mode. Completing all 25 answers took 430.55 s with eight waves and 365.76 s with four. The four-wave run generated 13.3% fewer tokens, which also contributed to the shorter time. [Questions, recorded answers and grading instructions](benchmarks/inkling-rocm/quality/README.md)
 
-- [Reproduce llama-bench, inspect the raw JSON and compare standard deviations](benchmarks/inkling-rocm/llama-bench-b12606/README.md)
-- [Rerun the 25 questions or grade the 50 recorded answers offline](benchmarks/inkling-rocm/quality/README.md)
-- [Read the optimization and profiling notes](benchmarks/inkling-rocm/README.md)
+**Unsloth Mainline_Support UD-Q4_K_M.** On the same GPU, tg768 rose from **48.63 to 56.67 tokens/s (+16.54%)** with the default optimizations. All three builds in this comparison included the upstream looped expert-scale fix (#32704) and scored 5/5 on the answer checks. This GGUF uses a different weight format for the gate and up projections. Logs showed zero four-wave kernel activations in the five runs with the option enabled. [UD-Q4_K_M benchmark, kernel logs and reproduction steps](benchmarks/inkling-rocm/ud-q4km-pr32704/README.md)
 
-![llama.cpp](https://raw.githubusercontent.com/ggml-org/llama-brand/refs/heads/master/logo/svg/cover/llama-cpp/cover-llama-cpp-dark.svg)
+## Use the Windows ZIP
 
-<div align="center">
+You need Windows x64, a Radeon RX 7900 XTX with a compatible AMD driver, and the Visual C++ x64 runtime. The ZIP includes the ROCm runtime. [Microsoft Visual C++ x64 runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe)
 
-<b>LLM inference in C/C++</b>
+1. Download `inkling-rdna3-windows-gfx1100.zip` and choose **Extract All** in Explorer. The release also includes the ZIP's SHA-256 checksum. [Windows preview downloads](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.1.0-preview.2)
+2. Download a compatible Inkling 2 Mini text model separately. For the Unsloth version, choose the file in `Mainline_Support` and rename its extension from `.gguf_file` to `.gguf`. [IQ4_NL model](https://huggingface.co/ggml-org/Inkling-2-Mini-GGUF) · [Unsloth UD-Q4_K_M model](https://huggingface.co/unsloth/Inkling-2-Mini-GGUF/tree/main/Mainline_Support)
+3. Drag the GGUF onto **`chat.cmd`**. Once the model loads, your default browser opens a local text chat with a 4,096-token context. Keep the console open while chatting.
+4. To check speed, press **Ctrl+C in the chat console** to stop the server, then drag the same GGUF onto **`bench.cmd`**. It prints the GPU name and the speed of one timed 768-token generation after warm-up.
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Release](https://img.shields.io/github/v/release/ggml-org/llama.cpp?color=brightgreen)](https://github.com/ggml-org/llama.cpp/releases?q=tag:v1)
-[![Nightly](https://img.shields.io/github/v/release/ggml-org/llama.cpp?label=nightly&filter=b*&color=orange)](https://github.com/ggml-org/llama.cpp/releases?q=b)
-[![Server](https://img.shields.io/github/actions/workflow/status/ggml-org/llama.cpp/server.yml?label=Server)](https://github.com/ggml-org/llama.cpp/actions/workflows/server.yml)
-[![Docker](https://img.shields.io/github/actions/workflow/status/ggml-org/llama.cpp/docker.yml?label=Docker)](https://github.com/ggml-org/llama.cpp/actions/workflows/docker.yml)
-[![Winget](https://img.shields.io/github/actions/workflow/status/ggml-org/llama.cpp/winget.yml?label=Winget)](https://github.com/ggml-org/llama.cpp/actions/workflows/winget.yml)
+Both launchers use your Windows display language. The four guides above cover language selection and building the ZIP from source.
 
-[v1.0.0](https://huggingface.co/blog/ggml-org/llama-cpp-v1) / [ggml](https://github.com/ggml-org/ggml) / [ops](https://github.com/ggml-org/llama.cpp/blob/master/docs/ops.md) / [maintainer PRs](https://github.com/ggml-org/llama.cpp/pulls?q=is%3Apr%20is%3Aopen%20draft%3AFalse%20(author%3Asanmai%20OR%20author%3Argerganov%20OR%20author%3AKitaitiMakoto%20OR%20author%3Adanbev%20OR%20author%3Aaldehir%20OR%20author%3Amax-krasnyansky%20OR%20author%3ACISC%20OR%20author%3Aggerganov%20OR%20author%3Aam17an%20OR%20author%3Ajhen0409%20OR%20author%3Abartowski1182%20OR%20author%3Anikwen%20OR%20author%3Ahipudding%20OR%20author%3Aravi9%20OR%20author%3AServeurpersoCom%20OR%20author%3Athelittlefireman%20OR%20author%3Apwilkin%20OR%20author%3Areeselevine%20OR%20author%3Angxson%20OR%20author%3Ajeffbolznv%20OR%20author%3Amarty1885%20OR%20author%3A0cc4m%20OR%20author%3ATitaniumtown%20OR%20author%3Aangt%20OR%20author%3AIMbackK%20OR%20author%3Aarthw%20OR%20author%3AJohannesGaessler%20OR%20author%3AORippler%20OR%20author%3Aruixiang63%20OR%20author%3Axctan%20OR%20author%3AmasterFoad%20OR%20author%3Aallozaur%20OR%20author%3AAndreas-Krebbel%20OR%20author%3Ayomaytk%20OR%20author%3Aaendk%20OR%20author%3Awine99%20OR%20author%3Agaugarg-nv%20OR%20author%3Ataronaeo%20OR%20author%3Aforforever73%20OR%20author%3Achaxu01%20OR%20author%3Alhez%20OR%20author%3AAlekseiNikiforovIBM%20OR%20author%3Anetrunnereve%20OR%20author%3Afairydreaming%20OR%20author%3Aynankani)%20sort%3Aupdated-desc) / [dev stats](https://github.com/ggml-org/llama.cpp-dev) / [lib llama API](https://github.com/ggml-org/llama.cpp/issues/9289) / [llama-server REST API](https://github.com/ggml-org/llama.cpp/issues/9291)
+## About the upstream llama.cpp project
 
-</div>
+This fork is based on ggml-org's **llama.cpp b12606**. The following resources belong to the original project.
 
-## Description
-
-The main goal of `llama.cpp` is to enable LLM (and MLLM) inference with minimal setup and state-of-the-art performance on a wide range of hardware - locally and in the cloud.
-
-The `llama.cpp` project is built on top of the [ggml](https://github.com/ggml-org/ggml) library.
-
-## Quick start
-
-A few options to get `llama.cpp` installed on your machine:
-
-```bash
-# curl
-curl -LsSf https://llama.app/install.sh | sh
-
-# powershell
-irm https://llama.app/install.ps1 | iex
-```
-
-- Visit https://llama.app and follow the instructions
-- Run with Docker - see our [Docker documentation](docs/docker.md)
-- Download pre-built binaries from the [releases page](https://github.com/ggml-org/llama.cpp/releases)
-- Build from source by cloning this repository - check out [our build guide](docs/build.md)
-
-Once installed:
-
-```sh
-# Download and run a model directly from Hugging Face
-llama cli -hf ggml-org/Qwen3.5-0.8B-GGUF
-
-# Launch OpenAI-compatible API server
-llama serve -hf ggml-org/Qwen3.5-0.8B-GGUF
-```
-
-<table align="center">
-    <tr>
-        <td align="center" width=50%>
-            <img width="1310" height="888" alt="VLM session with `llama cli`" src="https://github.com/user-attachments/assets/88726b48-1713-48aa-a525-95a02e78afc4" />
-            <i>VLM session with <b>llama cli</b></i>
-        </td>
-        <td align="center">
-            <img width="1392" height="958" alt="Llama Chat, the built-in chat app, against `llama serve` running Qwen 3.6" src="https://github.com/user-attachments/assets/b402f972-2e32-4def-8771-8d849f08cf2e" />
-            <i>Llama Chat, the built-in chat app, against <b>llama serve</b></i>
-        </td>
-    </tr>
-<table>
-
-## Documentation
-
-#### Tools
-
-- [cli](tools/cli/README.md)
-- [completion](tools/completion/README.md)
-- [server](tools/server/README.md)
-- [Text-to-speech (TTS) models](docs/multimodal/tts.md)
-- [GBNF grammars](grammars/README.md)
-
-#### Development
-
-- [How to build](docs/build.md)
-- [Running on Docker](docs/docker.md)
-- [Build on Android](docs/android.md)
-- [Multi-GPU usage](docs/multi-gpu.md)
-- [Performance troubleshooting](docs/development/token_generation_performance_tips.md)
-- [GGML tips & tricks](https://github.com/ggml-org/llama.cpp/wiki/GGML-Tips-&-Tricks)
-- [XCFramework](docs/xcframework.md)
-- [Completions](docs/completions.md)
-- [Models](docs/models.md)
-- [Release process](docs/release.md)
-
-## Contributing
-
-- Contributors can open PRs
-- Collaborators will be invited based on contributions
-- Maintainers can push to branches in the `llama.cpp` repo and merge PRs into the `master` branch
-- Any help with managing issues, PRs and projects is very appreciated!
-- Read the [CONTRIBUTING.md](CONTRIBUTING.md) for more information
-
-## Acknowledgements
-
-- [yhirose/cpp-httplib](https://github.com/yhirose/cpp-httplib) - Single-header HTTP server, used by `llama-server` - MIT license
-- [nothings/stb](https://github.com/nothings/stb) - Single-header image format decoder, used by multimodal subsystem - Public domain
-- [nlohmann/json](https://github.com/nlohmann/json) - Single-header JSON library, used by various tools/examples - MIT License
-- [mackron/miniaudio](https://github.com/mackron/miniaudio) - Single-header audio format decoder, used by multimodal subsystem - Public domain
-- [sheredom/subprocess.h](https://github.com/sheredom/subprocess.h) - Single-header process launching solution for C and C++ - Public domain
+- **Tools and development.** The upstream documentation covers the CLI, server, Docker, Android, multi-GPU setups and other platforms. [Upstream documentation index](https://github.com/ggml-org/llama.cpp/blob/b12606/README.md#documentation)
+- **Contributing to ggml-org/llama.cpp.** The original maintainers explain how they review pull requests and grant roles in their repository. [Upstream contributing guide](https://github.com/ggml-org/llama.cpp/blob/b12606/CONTRIBUTING.md)
+- **Acknowledgements and licenses.** The original project credits the libraries used by llama.cpp. The Windows ZIP includes third-party notices in its `licenses/` folder. [Upstream acknowledgements](https://github.com/ggml-org/llama.cpp/blob/b12606/README.md#acknowledgements) · [llama.cpp license](LICENSE)
