@@ -2,11 +2,30 @@
 
 [English](README.md) · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-**v0.1.0** 正式版適用於 Windows x64 與單張 Radeon RX 7900 XTX。壓縮檔沿用預覽版 3 的推論程式，已在這款顯示卡上實測 IQ4_NL 及 Unsloth Mainline_Support UD-Q4_K_M 兩種模型。
+**[v0.2.0](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.0)** · 適用於 Windows x64 和 Radeon RX 7900 XTX。長文輸入的 WMMA Attention 預設關閉。
+
+IQ4_NL，輸入 16,384 個 token，生成 1,000 個 token。每個設定均在暖機後對相同的兩個輸入各測一次，表中為平均值。
+
+| 設定 | 輸入 (tok/s) | 生成 (tok/s) | 請求耗時 (秒) |
+|---|---:|---:|---:|
+| v0.1.0 | 1,051.05 | 49.29 | 35.88 |
+| v0.2.0 (預設) | 1,292.79 | 51.01 | 32.29 |
+| v0.2.0 (WMMA) | 1,368.17 | 50.85 | 31.64 |
+
+預設配置的輸入速度提高 23.0%，生成速度提高 3.5%，請求耗時縮短 10.0%。兩個輸入的生成 token 均與前版完全一致。啟用 WMMA 後回答可能改變。日文閱讀測試中兩種設定均答對 72/88 題。 [16K benchmark](https://github.com/kanten2/llama.cpp-inkling-rdna3/blob/v0.2.0/benchmarks/inkling-rocm/v0.2.0/speed.json) · [88 QA](https://github.com/kanten2/llama.cpp-inkling-rdna3/blob/v0.2.0/benchmarks/inkling-rocm/v0.2.0/reading.json)
+
+在解壓縮目錄開啟 PowerShell，執行以下命令啟用 WMMA。新開的 PowerShell 使用預設設定。
+
+```powershell
+$env:INKLING_ATTN_DIRECT = '1'
+$env:INKLING_ATTN_WMMA = '1'
+.\chat.cmd "C:\models\Inkling-2-Mini-IQ4_NL.gguf"
+```
+
 
 ## 用 ZIP 啟動聊天與測速
 
-1. 從 [Windows 正式版 v0.1.0](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.1.0)下載 `inkling-rdna3-windows-gfx1100.zip`，在檔案總管中選取「全部解壓縮」，然後開啟解壓縮後的資料夾。
+1. 從 [Windows 正式版 v0.2.0](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.0)下載 `inkling-rdna3-windows-gfx1100.zip`，在檔案總管中選取「全部解壓縮」，然後開啟解壓縮後的資料夾。
 2. 準備 [ggml-org IQ4_NL](https://huggingface.co/ggml-org/Inkling-2-Mini-GGUF) 或 [Unsloth Mainline_Support UD-Q4_K_M](https://huggingface.co/unsloth/Inkling-2-Mini-GGUF/tree/main/Mainline_Support) 的文字模型。使用 Unsloth 版時，請選擇 `Mainline_Support` 資料夾內的檔案，並將副檔名從 `.gguf_file` 改為 `.gguf`。模型可留在原來的位置。
 3. 將 GGUF 拖曳到 **chat.cmd** 上。載入完成後，預設瀏覽器會開啟本機聊天頁面，上下文長度為 4,096 個 token。聊天時請保持主控台視窗開啟。結束時，在該視窗按 Ctrl+C 停止伺服器。
 4. 測速前，請先關閉占用顯示記憶體的其他推論工作，再將同一個 GGUF 拖曳到 **bench.cmd** 上。視窗會顯示顯示卡名稱及 **tg768 生成速度（tok/s）**。暖機後，從上下文深度 0 開始，計時生成 768 個 token，共測一次。結果不含模型載入時間。自動執行時可設定 `INKLING_NO_PAUSE=1` 跳過按鍵等待。

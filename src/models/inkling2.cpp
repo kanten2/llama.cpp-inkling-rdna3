@@ -288,8 +288,12 @@ ggml_tensor * llama_model_inkling2::graph::build_layer(int il, int ip, ggml_tens
     const int64_t n_embd_k_gqa = n_embd_head*n_head_kv;
 
     // the message of controller ctrl, [n_embd, n_tokens]
+    auto residual_input = [&](ggml_tensor * source, int index) {
+        auto * view = ggml_view_2d(ctx0, source, n_embd, n_tokens, source->nb[2], index*source->nb[1]);
+        return n_tokens == 1 && ggml_is_contiguous(view) ? view : ggml_cont(ctx0, view);
+    };
     auto message = [&](int ctrl) {
-        return ggml_cont(ctx0, ggml_view_2d(ctx0, messages, n_embd, n_tokens, messages->nb[2], ctrl*messages->nb[1]));
+        return residual_input(messages, ctrl);
     };
 
     ggml_tensor * state   = recr->mctx->get_r_l(il);
@@ -303,7 +307,7 @@ ggml_tensor * llama_model_inkling2::graph::build_layer(int il, int ip, ggml_tens
     if (layer.attn_res_query) {
         ggml_tensor * mixed = mix(blocks, cur, layer.attn_res_query);
         for (int j = 0; j < 3; ++j) {
-            inputs[j] = ggml_cont(ctx0, ggml_view_2d(ctx0, mixed, n_embd, n_tokens, mixed->nb[2], (is_swa ? 0 : j)*mixed->nb[1]));
+            inputs[j] = residual_input(mixed, is_swa ? 0 : j);
         }
     }
 

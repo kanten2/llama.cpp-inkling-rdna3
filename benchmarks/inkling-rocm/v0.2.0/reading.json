@@ -1,0 +1,186 @@
+{
+  "totals": {
+    "standard": {
+      "correct": 72,
+      "n": 88
+    },
+    "wmma": {
+      "correct": 72,
+      "n": 88
+    },
+    "direct": {
+      "correct": 72,
+      "n": 88
+    }
+  },
+  "by_category": {
+    "訂正": {
+      "n": 12,
+      "standard": 12,
+      "wmma": 12,
+      "direct": 12
+    },
+    "照合": {
+      "n": 12,
+      "standard": 12,
+      "wmma": 12,
+      "direct": 12
+    },
+    "理由": {
+      "n": 8,
+      "standard": 2,
+      "wmma": 2,
+      "direct": 2
+    },
+    "計算": {
+      "n": 12,
+      "standard": 12,
+      "wmma": 12,
+      "direct": 12
+    },
+    "直接検索": {
+      "n": 20,
+      "standard": 20,
+      "wmma": 20,
+      "direct": 20
+    },
+    "応用": {
+      "n": 24,
+      "standard": 14,
+      "wmma": 14,
+      "direct": 14
+    }
+  },
+  "per_document": {
+    "basic1": {
+      "standard": 8,
+      "wmma": 8,
+      "direct": 8
+    },
+    "basic2": {
+      "standard": 7,
+      "wmma": 7,
+      "direct": 7
+    },
+    "basic3": {
+      "standard": 7,
+      "wmma": 7,
+      "direct": 7
+    },
+    "basic4": {
+      "standard": 7,
+      "wmma": 7,
+      "direct": 7
+    },
+    "basic5": {
+      "standard": 7,
+      "wmma": 7,
+      "direct": 7
+    },
+    "basic6": {
+      "standard": 8,
+      "wmma": 8,
+      "direct": 8
+    },
+    "basic7": {
+      "standard": 7,
+      "wmma": 7,
+      "direct": 7
+    },
+    "basic8": {
+      "standard": 7,
+      "wmma": 7,
+      "direct": 7
+    },
+    "applied1": {
+      "standard": 2,
+      "wmma": 2,
+      "direct": 2
+    },
+    "applied2": {
+      "standard": 5,
+      "wmma": 5,
+      "direct": 5
+    },
+    "applied3": {
+      "standard": 1,
+      "wmma": 1,
+      "direct": 1
+    },
+    "applied4": {
+      "standard": 6,
+      "wmma": 6,
+      "direct": 6
+    }
+  },
+  "paired": {
+    "both_correct": 71,
+    "direct_equals_standard_answer": 88,
+    "both_wrong": 15,
+    "only_standard": 1,
+    "only_wmma": 1
+  },
+  "disagreements": [
+    {
+      "doc": "applied2",
+      "question": "保護期間後、条件が変わらないとき、実物展示と教育サイト配信の両方ができる標本は？",
+      "gold": "海鳥骨",
+      "answers": {
+        "standard": "海鳥骨",
+        "wmma": "雫石",
+        "direct": "海鳥骨"
+      }
+    },
+    {
+      "doc": "applied2",
+      "question": "三品のうち今会期に教育サイトで配信できる品数は？",
+      "gold": "2",
+      "answers": {
+        "standard": "1",
+        "wmma": "2",
+        "direct": "1"
+      }
+    },
+    {
+      "doc": "applied3",
+      "question": "夜の現物は何箱？",
+      "gold": "91",
+      "answers": {
+        "standard": "89",
+        "wmma": "94",
+        "direct": "89"
+      }
+    },
+    {
+      "doc": "applied3",
+      "question": "夜の自由在庫は何箱？",
+      "gold": "63",
+      "answers": {
+        "standard": "67",
+        "wmma": "72",
+        "direct": "67"
+      }
+    },
+    {
+      "doc": "applied3",
+      "question": "仮に午後の新しい引当だけがなかった場合、夜の自由在庫は何箱？",
+      "gold": "76",
+      "answers": {
+        "standard": "72",
+        "wmma": "77",
+        "direct": "72"
+      }
+    }
+  ],
+  "method": {
+    "document_tokens": 16384,
+    "prediction_limit": 448,
+    "temperature": 0,
+    "seed": 42,
+    "documents": 12,
+    "grouping": "8 synthetic Japanese operational reports, 8 short-answer questions each; 4 policy scenarios, 6 questions each; one response per document; shared archival filler",
+    "control": "same IQ4_NL candidate and F16 KV; standard vs direct indexed bias vs direct indexed bias plus WMMA",
+    "scoring": "frozen reference answers, Unicode NFKC, optional units and facility suffix removed; no partial credit",
+    "baseline_recheck": "standard document 1 identical in independent verbose run; WMMA kernel activation confirmed"
+  }
+}

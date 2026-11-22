@@ -2,7 +2,26 @@
 
 [English](README.md) · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-**v0.1.0** 是本项目的首个正式版，适用于 **Windows x64 和单张 Radeon RX 7900 XTX**。处理 16,384 个输入 token 时，IQ4_NL 的耗时从 **18.54 秒降至 13.53 秒**，Unsloth UD-Q4_K_M 从 **18.54 秒降至 13.89 秒**。ZIP 启动器默认启用这项优化。[下载 Windows 正式版](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.1.0) · [ZIP 使用与编译指南](packaging/inkling-windows/README.zh-Hans.md)
+**[v0.2.0](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.0)** · 适用于 Windows x64 和 Radeon RX 7900 XTX。长文本输入的 WMMA Attention 默认关闭。
+
+IQ4_NL，输入 16,384 个 token，生成 1,000 个 token。每个配置均在预热后对相同的两个输入各测一次，表中为平均值。
+
+| 配置 | 输入 (tok/s) | 生成 (tok/s) | 请求耗时 (秒) |
+|---|---:|---:|---:|
+| v0.1.0 | 1,051.05 | 49.29 | 35.88 |
+| v0.2.0 (默认) | 1,292.79 | 51.01 | 32.29 |
+| v0.2.0 (WMMA) | 1,368.17 | 50.85 | 31.64 |
+
+默认配置的输入速度提高 23.0%，生成速度提高 3.5%，请求耗时缩短 10.0%。两个输入的生成 token 均与前版完全一致。启用 WMMA 后回答可能改变。日语阅读测试中两种配置均答对 72/88 题。 [16K benchmark](https://github.com/kanten2/llama.cpp-inkling-rdna3/blob/v0.2.0/benchmarks/inkling-rocm/v0.2.0/speed.json) · [88 QA](https://github.com/kanten2/llama.cpp-inkling-rdna3/blob/v0.2.0/benchmarks/inkling-rocm/v0.2.0/reading.json)
+
+在解压目录打开 PowerShell，执行以下命令启用 WMMA。新开的 PowerShell 使用默认设置。
+
+```powershell
+$env:INKLING_ATTN_DIRECT = '1'
+$env:INKLING_ATTN_WMMA = '1'
+.\chat.cmd "C:\models\Inkling-2-Mini-IQ4_NL.gguf"
+```
+
 
 ## 优化内容
 
@@ -34,7 +53,7 @@
 
 ## 使用 Windows ZIP
 
-1. 从 [v0.1.0 正式版页面](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.1.0) 下载 `inkling-rdna3-windows-gfx1100.zip`，在资源管理器中选择“全部解压缩”。发布页面提供 ZIP 的 SHA-256 校验值。压缩包已包含 ROCm 运行时，系统需要兼容的 AMD 驱动和 [Visual C++ x64 运行时](https://aka.ms/vs/17/release/vc_redist.x64.exe)。
+1. 从 [v0.2.0 正式版页面](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.0) 下载 `inkling-rdna3-windows-gfx1100.zip`，在资源管理器中选择“全部解压缩”。发布页面提供 ZIP 的 SHA-256 校验值。压缩包已包含 ROCm 运行时，系统需要兼容的 AMD 驱动和 [Visual C++ x64 运行时](https://aka.ms/vs/17/release/vc_redist.x64.exe)。
 2. 另行下载 [IQ4_NL](https://huggingface.co/ggml-org/Inkling-2-Mini-GGUF) 或 [Unsloth Mainline_Support UD-Q4_K_M](https://huggingface.co/unsloth/Inkling-2-Mini-GGUF/tree/main/Mainline_Support) 的 GGUF。使用 Unsloth 版时，将扩展名从 `.gguf_file` 改为 `.gguf`。
 3. 将 GGUF 拖到 **chat.cmd**，浏览器会打开上下文长度为 4,096 个 token 的本地文本聊天界面。聊天期间保持控制台开启。
 4. 测速前在聊天控制台按 **Ctrl+C** 停止服务，再将同一 GGUF 拖到 **bench.cmd**。屏幕会显示显卡名称和预热后生成 768 个 token 的速度。

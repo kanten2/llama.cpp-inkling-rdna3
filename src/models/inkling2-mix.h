@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ggml.h"
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -27,8 +28,14 @@ struct inkling2_decode_mix {
                 // The stock graph prepends each block, in reverse storage order.
                 ggml_tensor * stack = prefix;
                 if (message_bank || blocks != prefix_blocks) {
-                    stack = ggml_reshape_3d(ctx, blocks.front(), width, 1, 1);
-                    for (size_t j = 1; j < blocks.size(); ++j) {
+                    size_t first = 1;
+                    if (!message_bank && prefix && prefix_blocks.size() < blocks.size() &&
+                        std::equal(prefix_blocks.begin(), prefix_blocks.end(), blocks.begin())) {
+                        first = prefix_blocks.size();
+                    } else {
+                        stack = ggml_reshape_3d(ctx, blocks.front(), width, 1, 1);
+                    }
+                    for (size_t j = first; j < blocks.size(); ++j) {
                         stack = ggml_concat(ctx, ggml_reshape_3d(ctx, blocks[j], width, 1, 1), stack, 1);
                     }
                     if (!message_bank) {
@@ -37,6 +44,7 @@ struct inkling2_decode_mix {
                     }
                 }
                 states = ggml_concat(ctx, stack, states, 1);
+                ggml_set_name(states, "inkling_decode_mix_stack");
             }
             states = ggml_rms_norm(ctx, states, 1e-6f);
             transposed = ggml_cont(ctx, ggml_transpose(ctx, states));

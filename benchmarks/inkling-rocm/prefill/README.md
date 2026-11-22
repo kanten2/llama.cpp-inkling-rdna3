@@ -1,8 +1,31 @@
 # Long-prompt prefill on a Radeon RX 7900 XTX
 
-The HIP kernel gathers Inkling's 24 relative-position bias values directly into the layout used to prepare the attention mask. It copies the existing F32 values. With fusion disabled, ggml gathers the values and then transposes and copies them. Both paths use the model's existing attention implementation.
+The v0.1.0 HIP kernel gathers Inkling's 24 relative-position bias values directly into the F32 layout used to prepare the attention mask. The current RDNA3 implementation also fuses mask addition and the final F16 cast when the graph has a single stream and a compatible mask. It adds in F32 and rounds once, using the same conversion as ggml's standalone cast. Other layouts retain their existing execution path.
 
-## Throughput
+## Direct relative-position lookup in attention
+
+Set both `INKLING_PP_FUSE=1` and `INKLING_ATTN_DIRECT=1` before starting the experimental HIP build. The `INKLING_ATTN_DIRECT_ACTIVE` log entry confirms that a prefill graph used the specialization. It reads the indexed F32 bias and shared input mask inside the 128-dimensional attention tile, then rounds their sum to F16 before applying the score adjustment. The KV partition follows the dense kernel so the softmax reduction keeps its original order. The graph matcher checks that the inputs remain live through attention and falls back to the ordinary mask when the tensors overlap. The specialization applies to RDNA3.0 prefill batches with more than 32 queries.
+
+On the RX 7900 XTX, two fixed 16,384-token IQ4_NL prompts with 1,000 generated tokens per request gave median prefill times of 12.701 s with the fused dense mask and 12.837 s with direct lookup (four requests per build). Both prompts produced identical token sequences. On the first prompt all 200,058 FP32 logits matched byte for byte at all 1,000 generation positions. The option remains off by default.
+
+### Experimental RDNA3 WMMA prefill
+
+With direct lookup enabled, set `INKLING_ATTN_WMMA=1` before starting the HIP server to select the experimental 64-query WMMA tile. Look for `INKLING_WMMA_ACTIVE` in the log. Each wave reads a head-specific FP16 bias tile into shared memory. The kernel reuses ggml's WMMA and softmax implementation, with FP16 operands and FP32 accumulation for both the score and weighted-value products. Single-token decode uses the usual path. The WMMA prefill changes the floating-point reductions and can change greedy generation. Leave this flag unset to use the original direct-lookup kernel.
+
+On the RX 7900 XTX, the mean GPU time in the prefill attention interval fell from 2.566 s to 1.862 s for two 16,384-token prompts. Median prefill time fell from 12.801 s to 12.060 s over four requests per build, each generating 1,000 tokens. The two greedy continuations both diverged at token five. On a fixed continuation, 973 of 1,000 top predictions agreed. For 27 sampled attention rows, the largest relative L2 error against an independent FP64 calculation was 0.097%.
+
+## Fused mask addition and cast
+
+On a Windows RX 7900 XTX with Inkling-2-Mini-IQ4_NL, the server processed two fixed 16,384-token prompts twice per build and generated 1,000 tokens per request. The table gives the median of four warm runs per build, with build and prompt order reversed on the repeat. Both used a 17,408-token context, batch 2,048, microbatch 512, F16 KV, one slot, greedy decoding and no prompt cache. Only the HIP backend DLL changed.
+
+| HIP backend | Prompt (tok/s) | Generation (tok/s) | Request time (s) |
+| --- | ---: | ---: | ---: |
+| v0.1.0 | 1,044.2 | 49.16 | 36.07 |
+| Fused mask addition and cast | 1,280.1 | 49.14 | 33.14 |
+
+The generated token IDs matched on both prompts. A separate diagnostic compared every final F16 mask element produced by the new path with the previous operations on the same inputs. It found zero differing values across all 48 layers at 4,096 and 16,384 input tokens. Replaying the first prompt and its continuation through both backends also produced byte-identical FP32 logits for all 200,058 vocabulary entries at each of the 1,000 output positions.
+
+## Original gather fusion throughput
 
 One RX 7900 XTX (gfx1100), Windows ROCm, b12606 with the loop-scale fix (#32704). Each row compares fusion off and on in the **same build**. The IQ4_NL timing binary had diagnostic timestamps disabled. The UD-Q4_K_M binary had the instrumentation removed. These measurements were made on the preview 2–based prototype before packaging preview 3. Each cell is the mean ± sample standard deviation across five timed runs after a full-length warm-up. Load time is excluded. Seconds are the mean of the individual elapsed times.
 

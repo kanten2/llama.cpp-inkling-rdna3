@@ -5397,9 +5397,11 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
 
 #ifdef GGML_USE_HIP
 // Each lane gathers the bias for one key and stores it directly in [key, query, head] order.
+template<typename T, typename M>
 static __global__ void inkling_gather_permuted_bias(const uint32_t * table,
                                                     const int32_t *  ids,
-                                                    uint32_t *       out,
+                                                    const M *        mask,
+                                                    T *              out,
                                                     int              keys,
                                                     int              queries,
                                                     int              table_row,
@@ -5413,10 +5415,229 @@ static __global__ void inkling_gather_permuted_bias(const uint32_t * table,
     const int        row   = ids[key + query * idx_query];
     const uint32_t * data  = table + query * table_query + row * table_row;
     const int        dest  = key + query * keys;
+    float mask_value = 0.0f;
+    if constexpr (std::is_same_v<T, half>) {
+        mask_value = ggml_cuda_cast<float>(mask[dest]);
+    }
 #pragma unroll
     for (int h = 0; h < 24; h++) {
-        out[dest + h * keys * queries] = data[h];
+        if constexpr (std::is_same_v<T, half>) {
+            out[dest + h * keys * queries] = ggml_cuda_cast<half>(__uint_as_float(data[h]) + mask_value);
+        } else {
+            out[dest + h * keys * queries] = data[h];
+        }
     }
+}
+
+static bool inkling_overlaps(const ggml_tensor * a, const ggml_tensor * b) {
+    const uintptr_t p = (uintptr_t) a->data;
+    const uintptr_t q = (uintptr_t) b->data;
+    return p < q + ggml_nbytes(b) && q < p + ggml_nbytes(a);
+}
+
+// Read the immutable prefix and the current residual directly. Keep the same
+// float4 lanes and block reduction as rms_norm_f32 for a 2304-wide row.
+template<bool write_transpose>
+static __global__ void inkling_decode_mix_norm(const float4 * prefix, const float4 * current,
+                                              float4 * normalized, float * transposed, int rows, float eps) {
+    constexpr int width = 2304;
+    constexpr int cols4 = width / 4;
+    const int row = blockIdx.x;
+    const int tid = threadIdx.x;
+    float4 value = {};
+    float sum = 0.0f;
+    if (tid < cols4) {
+        value = row < rows - 1 ? prefix[row*cols4 + tid] : current[tid];
+        sum += value.x*value.x + value.y*value.y + value.z*value.z + value.w*value.w;
+    }
+    __shared__ float partial[32];
+    sum = block_reduce<block_reduce_method::SUM, 1024>(sum, partial);
+    const float scale = rsqrtf(sum / width + eps);
+    if (tid < cols4) {
+        const float4 result = make_float4(scale*value.x, scale*value.y, scale*value.z, scale*value.w);
+        normalized[row*cols4 + tid] = result;
+        if constexpr (write_transpose) {
+            float * dst = transposed + 4*tid*rows + row;
+            dst[0] = result.x;
+            dst[rows] = result.y;
+            dst[2*rows] = result.z;
+            dst[3*rows] = result.w;
+        }
+    }
+}
+
+static bool inkling_try_decode_mix(ggml_backend_cuda_context * ctx, ggml_cgraph * g, int & i) {
+    auto * cat = g->nodes[i];
+    if (cat->op != GGML_OP_CONCAT || cat->ne[0] != 2304 || !ggml_is_matrix(cat) ||
+        cat->ne[1] < 2 || cat->ne[1] > 64 || i + 1 >= g->n_nodes || strcmp(cat->name, "inkling_decode_mix_stack") != 0 ||
+        !GGML_CUDA_CC_IS_RDNA3_0(ggml_cuda_info().devices[ctx->device].cc)) {
+        return false;
+    }
+    static const bool enabled = [] {
+        const char * setting = std::getenv("INKLING_DECODE_MIX");
+        return !setting || strcmp(setting, "0") != 0;
+    }();
+    auto * norm = g->nodes[i+1];
+    auto * prefix = cat->src[0];
+    auto * current = cat->src[1];
+    if (!enabled || norm->op != GGML_OP_RMS_NORM || norm->src[0] != cat ||
+        ggml_get_op_params_i32(cat, 0) != 1 || current->ne[1] != 1 ||
+        cat->type != GGML_TYPE_F32 || norm->type != GGML_TYPE_F32 ||
+        !ggml_is_contiguous(prefix) || !ggml_is_contiguous(current) || !ggml_is_contiguous(norm) ||
+        !ggml_cuda_is_aligned(prefix, 16) || !ggml_cuda_is_aligned(current, 16) ||
+        !ggml_cuda_is_aligned(norm, 16) || inkling_overlaps(prefix, norm) || inkling_overlaps(current, norm) ||
+        !ggml_can_fuse(g, i, {GGML_OP_CONCAT, GGML_OP_RMS_NORM})) {
+        return false;
+    }
+    float eps;
+    memcpy(&eps, norm->op_params, sizeof(eps));
+    const int rows = int(cat->ne[1]);
+    auto * copy = i+3 < g->n_nodes ? g->nodes[i+3] : nullptr;
+    auto * view = copy ? g->nodes[i+2] : nullptr;
+    const bool transpose = copy && view->op == GGML_OP_TRANSPOSE && view->src[0] == norm &&
+        copy->op == GGML_OP_CONT && copy->src[0] == view && (copy->flags & GGML_TENSOR_FLAG_COMPUTE) &&
+        ggml_are_same_shape(copy, view) && ggml_is_contiguous(copy) && copy->type == GGML_TYPE_F32 &&
+        !inkling_overlaps(copy, prefix) && !inkling_overlaps(copy, current) && !inkling_overlaps(copy, norm);
+    const auto * a = static_cast<const float4 *>(prefix->data);
+    const auto * b = static_cast<const float4 *>(current->data);
+    auto * out = static_cast<float4 *>(norm->data);
+    if (transpose) {
+        inkling_decode_mix_norm<true><<<rows, 1024, 0, ctx->stream()>>>(a, b, out, static_cast<float *>(copy->data), rows, eps);
+    } else {
+        inkling_decode_mix_norm<false><<<rows, 1024, 0, ctx->stream()>>>(a, b, out, nullptr, rows, eps);
+    }
+    i += transpose ? 3 : 1;
+    static const bool announced = [] { GGML_LOG_INFO("INKLING_DECODE_MIX_ACTIVE\n"); return true; }();
+    GGML_UNUSED(announced);
+    return true;
+}
+
+// Fuse only the head-dependent RDNA3 tile path. Other head sizes, short batches,
+// exported masks and non-private intermediates keep their ordinary graph semantics.
+static bool inkling_try_relative_attention(ggml_backend_cuda_context * ctx, ggml_cgraph * g, int & i,
+                                           int out_idx, const ggml_tensor * table, const ggml_tensor * ids,
+                                           const ggml_tensor * mask) {
+    static const bool enabled = [] {
+        const char * value = std::getenv("INKLING_ATTN_DIRECT");
+        return value && strcmp(value, "1") == 0;
+    }();
+    const ggml_tensor * out = g->nodes[out_idx];
+    if (!enabled || out_idx + 1 >= g->n_nodes || (out->flags & GGML_TENSOR_FLAG_OUTPUT) ||
+        out->view_src || ggml_node_get_use_count(g, out_idx) != 2) {
+        return false;
+    }
+    // CPY references itself. Attention must be its only other consumer.
+    ggml_tensor * fill = g->nodes[out_idx + 1]->op == GGML_OP_FILL ? g->nodes[out_idx + 1] : nullptr;
+    const int attn_idx = out_idx + 1 + (fill != nullptr);
+    if (attn_idx >= g->n_nodes) {
+        return false;
+    }
+    ggml_tensor * attn = g->nodes[attn_idx];
+    if (attn->op != GGML_OP_FLASH_ATTN_EXT || attn->src[3] != out || attn->src[5] ||
+        !(attn->flags & GGML_TENSOR_FLAG_COMPUTE) ||
+        (fill && (attn->src[4] != fill || !(fill->flags & GGML_TENSOR_FLAG_COMPUTE)))) {
+        return false;
+    }
+    const ggml_tensor * q = attn->src[0];
+    const ggml_tensor * k = attn->src[1];
+    const ggml_tensor * v = attn->src[2];
+    if (q->ne[0] != 128 || q->ne[1] != out->ne[1] || q->ne[1] <= 32 || q->ne[2] != 24 || q->ne[3] != 1 ||
+        k->type != GGML_TYPE_F16 || v->type != GGML_TYPE_F16 || k->ne[0] != 128 || v->ne[0] != 128 ||
+        k->ne[1] != out->ne[0] || ggml_get_op_params_f32(attn, 2) != 0.0f) {
+        return false;
+    }
+    for (const ggml_tensor * input : {table, ids, mask}) {
+        if (inkling_overlaps(attn, input) || (fill && inkling_overlaps(fill, input))) {
+            return false;
+        }
+    }
+    if (fill) {
+        ggml_cuda_op_fill(*ctx, fill);
+    }
+    ggml_hip_inkling_relative_attention(*ctx, attn, table, ids, mask);
+    static const bool announced = [] {
+        GGML_LOG_INFO("INKLING_ATTN_DIRECT_ACTIVE\n");
+        return true;
+    }();
+    GGML_UNUSED(announced);
+    i = attn_idx;
+    return true;
+}
+
+// A private F16-to-F32 input mask cast can be read directly from its source.
+static bool inkling_try_fuse_mask(ggml_backend_cuda_context * ctx, ggml_cgraph * g, int & i, dim3 grid) {
+    if (i + 5 >= g->n_nodes) {
+        return false;
+    }
+    ggml_tensor * bias = g->nodes[i + 3];
+    ggml_tensor * mask_cast = g->nodes[i + 4]->op == GGML_OP_CPY ? g->nodes[i + 4] : nullptr;
+    const int add_idx = i + (mask_cast ? 5 : 4);
+    const int out_idx = add_idx + 1;
+    if (out_idx >= g->n_nodes) {
+        return false;
+    }
+    const ggml_tensor * add = g->nodes[add_idx];
+    const ggml_tensor * out = g->nodes[out_idx];
+    if (add->op != GGML_OP_ADD || add->src[0] != bias || add->type != GGML_TYPE_F32 ||
+        out->op != GGML_OP_CPY || out->src[0] != add || out->src[1] != out || out->type != GGML_TYPE_F16 ||
+        !ggml_are_same_shape(bias, add) || !ggml_are_same_shape(bias, out) || !ggml_is_contiguous(out)) {
+        return false;
+    }
+    const ggml_tensor * mask = add->src[1];
+    const ggml_tensor * table = g->nodes[i]->src[0];
+    const ggml_tensor * ids = g->nodes[i]->src[1];
+    if (mask->type != GGML_TYPE_F32 || mask->ne[0] != bias->ne[0] ||
+        mask->ne[1] != bias->ne[1] || mask->ne[2] != 1 || mask->ne[3] != 1) {
+        return false;
+    }
+    const enum ggml_op ops[] = { GGML_OP_GET_ROWS, GGML_OP_RESHAPE, GGML_OP_PERMUTE, GGML_OP_CONT, GGML_OP_ADD, GGML_OP_CPY };
+    const int nodes[] = { i, i + 1, i + 2, i + 3, add_idx, out_idx };
+    if (!ggml_can_fuse_subgraph_ext(g, nodes, 6, ops, &out_idx, 1)) {
+        return false;
+    }
+    if (mask_cast) {
+        if (mask_cast != mask || mask_cast->src[1] != mask_cast || mask_cast->src[0]->type != GGML_TYPE_F16 ||
+            !(mask_cast->flags & GGML_TENSOR_FLAG_COMPUTE) || (mask_cast->flags & GGML_TENSOR_FLAG_OUTPUT) ||
+            !ggml_are_same_shape(mask_cast->src[0], mask_cast) || mask_cast->view_src ||
+            ggml_node_get_use_count(g, i + 4) != 2) { // the cast's self-reference and ADD
+            return false;
+        }
+        mask = mask_cast->src[0];
+    }
+    if (!ggml_is_contiguous(mask)) {
+        return false;
+    }
+    if (inkling_try_relative_attention(ctx, g, i, out_idx, table, ids, mask)) {
+        return true;
+    }
+    if (inkling_overlaps(out, ids) || inkling_overlaps(out, mask)) {
+        return false;
+    }
+    // The final mask can reuse the lookup table's storage after the unfused gather.
+    const void * lookup = table->data;
+    ggml_cuda_pool_alloc<uint8_t> saved_table(ctx->pool());
+    if (inkling_overlaps(out, table)) {
+        const size_t bytes = ggml_nbytes(table);
+        lookup = saved_table.alloc(bytes);
+        CUDA_CHECK(cudaMemcpyAsync(saved_table.get(), table->data, bytes, cudaMemcpyDeviceToDevice, ctx->stream()));
+    }
+    auto launch = [&](auto mask_data) {
+        inkling_gather_permuted_bias<<<grid, 128, 0, ctx->stream()>>>(
+            (const uint32_t *) lookup, (const int32_t *) ids->data, mask_data, (half *) out->data,
+            bias->ne[0], bias->ne[1], table->nb[1] / 4, table->nb[2] / 4, ids->nb[1] / 4);
+    };
+    if (mask_cast) {
+        launch((const half *) mask->data);
+    } else {
+        launch((const float *) mask->data);
+    }
+    static const bool announced = []() {
+        GGML_LOG_INFO("PP_FUSION_ACTIVE PP_MASK_FUSION_ACTIVE\n");
+        return true;
+    }();
+    GGML_UNUSED(announced);
+    i = out_idx;
+    return true;
 }
 
 static bool inkling_try_fuse_prefill_bias(ggml_backend_cuda_context * ctx, ggml_cgraph * g, int & i) {
@@ -5453,21 +5674,20 @@ static bool inkling_try_fuse_prefill_bias(ggml_backend_cuda_context * ctx, ggml_
     if (!GGML_CUDA_CC_IS_RDNA3_0(ggml_cuda_info().devices[ctx->device].cc)) {
         return false;
     }
+    const dim3 grid((keys + 127) / 128, queries, 1);
+    if (inkling_try_fuse_mask(ctx, g, i, grid)) {
+        return true;
+    }
     if (!ggml_can_fuse_subgraph(g, i, { GGML_OP_GET_ROWS, GGML_OP_RESHAPE, GGML_OP_PERMUTE, GGML_OP_CONT },
                                 { i + 3 })) {
         return false;
     }
     // The scheduler may reuse storage previously occupied by the lookup table or indices.
-    auto overlap = [](const ggml_tensor * a, const ggml_tensor * b) {
-        auto p = (uintptr_t) a->data, q = (uintptr_t) b->data;
-        return p < q + ggml_nbytes(b) && q < p + ggml_nbytes(a);
-    };
-    if (overlap(dst, table) || overlap(dst, ids)) {
+    if (inkling_overlaps(dst, table) || inkling_overlaps(dst, ids)) {
         return false;
     }
-    const dim3 grid((keys + 127) / 128, queries, 1);
     inkling_gather_permuted_bias<<<grid, 128, 0, ctx->stream()>>>(
-        (const uint32_t *) table->data, (const int32_t *) ids->data, (uint32_t *) dst->data, keys, queries,
+        (const uint32_t *) table->data, (const int32_t *) ids->data, (const float *) nullptr, (uint32_t *) dst->data, keys, queries,
         table->nb[1] / 4, table->nb[2] / 4, ids->nb[1] / 4);
     // Log only after the specialization actually matches.
     static const bool announced = [keys, queries]() {
@@ -5654,6 +5874,9 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                 }
 
 #ifdef GGML_USE_HIP
+                if (!is_concurrent_event_active && inkling_try_decode_mix(cuda_ctx, cgraph, i)) {
+                    continue;
+                }
                 if (!is_concurrent_event_active && inkling_try_fuse_prefill_bias(cuda_ctx, cgraph, i)) {
                     continue;
                 }
