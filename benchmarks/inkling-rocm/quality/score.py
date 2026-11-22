@@ -55,7 +55,7 @@ def read_pairs(path, protocol, suite):
                 or t["predicted_ms"] <= 0 or r["wall_s"] <= 0):
             raise ValueError(f"Invalid or duplicate measurement: {key}")
         attempts[key] = r
-    rows = []
+    rows_by_id = {}
     truncated = []
     for qid, q in suite.items():
         for ctx in tiers:
@@ -69,14 +69,14 @@ def read_pairs(path, protocol, suite):
             row = {"id": qid, "title": q["title"], "expected": q["expected"]}
             for r in pair:
                 row[r["mode"]] = dict(r, correct=decode_answer(r["answer"]) == q["expected"])
-            rows.append(row)
+            rows_by_id[qid] = row
             break
         else:
             raise ValueError(f"No complete matched pair for {qid}")
     if attempts:
         raise ValueError("Unexpected attempts after matched natural stops")
-    rows.sort(key=lambda r: (list(FIELDS).index(r["id"][0]), int(r["id"][1:])))
-    return rows, truncated
+    ordered_ids = sorted(rows_by_id, key=lambda qid: (list(FIELDS).index(qid[0]), int(qid[1:])))
+    return [rows_by_id[qid] for qid in ordered_ids], truncated
 
 
 def aggregate(rows, mode):
