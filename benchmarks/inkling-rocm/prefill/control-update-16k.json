@@ -1,0 +1,233 @@
+{
+  "baseline_commit": "9abf37c",
+  "results": {
+    "base": {
+      "prompt_s": 12.28755375,
+      "decode_s": 5.0159225,
+      "wall_s": 17.31686400000035
+    },
+    "candidate": {
+      "prompt_s": 12.10927725,
+      "decode_s": 5.021895,
+      "wall_s": 17.162817649994395
+    },
+    "strata": {
+      "prompt_s": 7.29285,
+      "decode_s": 4.885125,
+      "wall_s": 12.180044274995453
+    }
+  },
+  "change": {
+    "prompt_s": {
+      "saved_s": 0.17827650000000084,
+      "saved_pct": 1.4508705607900296,
+      "gap_before_s": 4.994703750000001,
+      "gap_after_s": 4.81642725
+    },
+    "decode_s": {
+      "saved_s": -0.005972499999999492,
+      "saved_pct": -0.11907081897695182,
+      "gap_before_s": 0.1307974999999999,
+      "gap_after_s": 0.1367699999999994
+    },
+    "wall_s": {
+      "saved_s": 0.1540463500059559,
+      "saved_pct": 0.8895741746655306,
+      "gap_before_s": 5.136819725004898,
+      "gap_after_s": 4.982773374998942
+    }
+  },
+  "trials": {
+    "base": [
+      {
+        "block": "base",
+        "prompt": 1,
+        "prompt_s": 12.39893,
+        "decode_s": 5.023304,
+        "wall_s": 17.435900699987542
+      },
+      {
+        "block": "base",
+        "prompt": 2,
+        "prompt_s": 12.341629000000001,
+        "decode_s": 5.02025,
+        "wall_s": 17.37524080000003
+      },
+      {
+        "block": "base-recheck",
+        "prompt": 2,
+        "prompt_s": 12.168861000000001,
+        "decode_s": 5.013583,
+        "wall_s": 17.195704300014768
+      },
+      {
+        "block": "base-recheck",
+        "prompt": 1,
+        "prompt_s": 12.240795,
+        "decode_s": 5.006553,
+        "wall_s": 17.260610199999064
+      }
+    ],
+    "candidate": [
+      {
+        "block": "candidate",
+        "prompt": 1,
+        "prompt_s": 12.108174000000002,
+        "decode_s": 5.024309000000001,
+        "wall_s": 17.145701300003566
+      },
+      {
+        "block": "candidate",
+        "prompt": 2,
+        "prompt_s": 12.121349,
+        "decode_s": 5.018516,
+        "wall_s": 17.191092499997467
+      },
+      {
+        "block": "candidate-recheck",
+        "prompt": 2,
+        "prompt_s": 12.090456,
+        "decode_s": 5.040577,
+        "wall_s": 17.143858699972043
+      },
+      {
+        "block": "candidate-recheck",
+        "prompt": 1,
+        "prompt_s": 12.11713,
+        "decode_s": 5.004178,
+        "wall_s": 17.170618100004504
+      }
+    ],
+    "strata": [
+      {
+        "block": "strata",
+        "prompt": 1,
+        "prompt_s": 7.2573,
+        "decode_s": 4.9479,
+        "wall_s": 12.20729309998569
+      },
+      {
+        "block": "strata",
+        "prompt": 2,
+        "prompt_s": 7.3388,
+        "decode_s": 4.8239,
+        "wall_s": 12.164796099998057
+      },
+      {
+        "block": "strata-recheck",
+        "prompt": 2,
+        "prompt_s": 7.2297,
+        "decode_s": 4.9448,
+        "wall_s": 12.176560599997174
+      },
+      {
+        "block": "strata-recheck",
+        "prompt": 1,
+        "prompt_s": 7.3456,
+        "decode_s": 4.8239,
+        "wall_s": 12.17152730000089
+      }
+    ]
+  },
+  "bitcheck": {
+    "matched": true,
+    "statuses": [
+      [
+        0,
+        "record",
+        0
+      ],
+      [
+        0,
+        "compare",
+        0
+      ],
+      [
+        1,
+        "record",
+        0
+      ],
+      [
+        1,
+        "compare",
+        0
+      ]
+    ],
+    "compared_fp32_values_if_matched": 102429696,
+    "greedy_token_ids_identical": true
+  },
+  "method": {
+    "gpu": "Radeon RX 7900 XTX, Windows ROCm",
+    "workload": "Two fixed 16384-token inputs, 256 greedy output tokens, no prompt cache, FP16 KV, context 17408, microbatch/chunk 512. Two runs per prompt for each engine; warm-up on each launch; wall time excludes model loading.",
+    "schedule": "base, candidate, Strata, Strata, candidate, base; second half uses reverse prompt order",
+    "rd": "Inkling 2 Mini IQ4_NL, standard attention, direct and WMMA off; both baseline and candidate include batched residual mix fusion.",
+    "strata": "0.2.19 / Inkling engine 0.1.65, SQ-20, draft off, HIPBLASLt off"
+  },
+  "sha256": {
+    "base": {
+      "llama.dll": "3c2a0b6387274bbad20cbb5bfd68a290745cc9cf957c915d47149c95d04ada02",
+      "ggml-hip.dll": "9a4dc60f59412057ca8c0eed54f9ebd704c6866546fd2b827a3bd310370ab0e7"
+    },
+    "candidate": {
+      "llama.dll": "ae31c79b66d9166878b5cc38916e00a32d54c631d485cd3277fc6101fd00a4a5",
+      "ggml-hip.dll": "0479d94c74cd2844940247e363204099ae2d4a532bd1d2e9ccb6172f4e53d0b3"
+    }
+  },
+  "input_hashes_int32le": [
+    "4d9f121d0f3cc312b8fb17d5a6a2ee45678fb67d21c9c24b724d05d5d9a5fedf",
+    "4e9f1c74d9444d225787979836f4e597df10475fb6d1ab843fc21d0f63ad2beb"
+  ],
+  "paired_block_saved_s": {
+    "prompt_s": [
+      0.25551800000000036,
+      0.10103500000000132
+    ],
+    "decode_s": [
+      0.0003644999999998788,
+      -0.012309499999998863
+    ],
+    "wall_s": [
+      0.23717384999326896,
+      0.07091885001864284
+    ]
+  },
+  "per_session_means_s": {
+    "base": [
+      {
+        "prompt_s": 12.28755375,
+        "decode_s": 5.0159225,
+        "wall_s": 17.31686400000035
+      }
+    ],
+    "candidate": [
+      {
+        "prompt_s": 12.10927725,
+        "decode_s": 5.021895,
+        "wall_s": 17.162817649994395
+      }
+    ],
+    "strata": [
+      {
+        "prompt_s": 7.29285,
+        "decode_s": 4.885125,
+        "wall_s": 12.180044274995453
+      }
+    ]
+  },
+  "implementation": {
+    "target": "RDNA3.0, contiguous FP32 tensors of the same shape, token dimension > 1",
+    "operation": "tanh(forget) * cur, subtraction from cur, tanh(gain) * message, addition; both tanh calls and all four arithmetic operations run in one HIP kernel",
+    "numerics": "clang fp contract(off); gfx1100 assembly verified to end with v_mul_f32, v_sub_f32, v_mul_f32 and v_add_f32",
+    "dispatch_verified": true
+  },
+  "graph": {
+    "base": {
+      "prefill_graph_nodes": 11335,
+      "gpu_compute_buffer_MiB": 1884.72
+    },
+    "candidate": {
+      "prefill_graph_nodes": 11431,
+      "gpu_compute_buffer_MiB": 1893.72
+    }
+  }
+}

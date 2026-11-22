@@ -5435,6 +5435,70 @@ static bool inkling_overlaps(const ggml_tensor * a, const ggml_tensor * b) {
     return p < q + ggml_nbytes(b) && q < p + ggml_nbytes(a);
 }
 
+// Preserve the separately rounded products, subtraction and addition of the graph.
+static __global__ void inkling_control_update(const float * gain, const float * forget, const float * cur,
+                                             const float * message, float * dst, int64_t count) {
+#pragma clang fp contract(off)
+    const int64_t k = int64_t(blockIdx.x)*blockDim.x + threadIdx.x;
+    if (k < count) {
+        const float x = cur[k];
+        const float kept = x - tanhf(forget[k]) * x;
+        dst[k] = kept + tanhf(gain[k]) * message[k];
+    }
+}
+
+static bool inkling_try_control_update(ggml_backend_cuda_context * ctx, ggml_cgraph * graph, int & i) {
+    if (graph->nodes[i]->op != GGML_OP_UNARY || i + 5 >= graph->n_nodes) {
+        return false;
+    }
+    auto * out = graph->nodes[i + 5];
+    if (out->op != GGML_OP_ADD || strcmp(out->name, "inkling_ctrl_update") != 0 ||
+        !GGML_CUDA_CC_IS_RDNA3_0(ggml_cuda_info().devices[ctx->device].cc)) {
+        return false;
+    }
+    auto * sub = out->src[0];
+    auto * gained = out->src[1];
+    if (sub->op != GGML_OP_SUB || gained->op != GGML_OP_MUL || sub->src[1]->op != GGML_OP_MUL) {
+        return false;
+    }
+    auto * cur = sub->src[0];
+    auto * lost = sub->src[1];
+    auto * gain = gained->src[0];
+    auto * forget = lost->src[0];
+    if (lost->src[1] != cur || gain->op != GGML_OP_UNARY || forget->op != GGML_OP_UNARY ||
+        ggml_get_unary_op(gain) != GGML_UNARY_OP_TANH || ggml_get_unary_op(forget) != GGML_UNARY_OP_TANH ||
+        out->type != GGML_TYPE_F32 || !ggml_is_contiguous(out) || out->ne[1] <= 1) {
+        return false;
+    }
+    ggml_op ops[6];
+    for (int j = 0; j < 6; ++j) {
+        auto * n = graph->nodes[i + j];
+        if (n != gain && n != forget && n != lost && n != sub && n != gained && n != out) {
+            return false;
+        }
+        ops[j] = n->op;
+    }
+    const int last = i + 5;
+    if (!ggml_can_fuse_subgraph(graph, i, 6, ops, &last, 1)) {
+        return false;
+    }
+    auto * message = gained->src[1];
+    for (auto * src : {gain->src[0], forget->src[0], cur, message}) {
+        if (src->type != GGML_TYPE_F32 || !ggml_are_same_shape(src, out) || !ggml_is_contiguous(src) ||
+            (src->data != out->data && inkling_overlaps(src, out))) {
+            return false;
+        }
+    }
+    const int64_t n = ggml_nelements(out);
+    inkling_control_update<<<(n + 255)/256, 256, 0, ctx->stream()>>>(
+        (const float *) gain->src[0]->data, (const float *) forget->src[0]->data,
+        (const float *) cur->data, (const float *) message->data, (float *) out->data, n);
+    i = last;
+    static const bool announced = [] { GGML_LOG_INFO("INKLING_CONTROL_UPDATE_ACTIVE\n"); return true; }();
+    GGML_UNUSED(announced);
+    return true;
+}
+
 // Read the immutable prefix and the current residual directly. Keep the same
 // float4 lanes and block reduction as rms_norm_f32 for a 2304-wide row.
 template<bool write_transpose>
@@ -5887,6 +5951,9 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                 }
 
 #ifdef GGML_USE_HIP
+                if (!is_concurrent_event_active && inkling_try_control_update(cuda_ctx, cgraph, i)) {
+                    continue;
+                }
                 if (!is_concurrent_event_active && inkling_try_mix_norm(cuda_ctx, cgraph, i)) {
                     continue;
                 }
@@ -6123,6 +6190,35 @@ static void ggml_backend_cuda_graph_optimize(ggml_backend_t backend, ggml_cgraph
             }
         }
         for (int i = 0; i < cgraph->n_nodes; ++i) {
+#ifdef GGML_USE_HIP
+            // Move only the independent sibling projection ahead of the first gate.
+            // Do this before allocation so its extended lifetime is visible to the allocator.
+            if (i >= 7 && cgraph->nodes[i]->op == GGML_OP_ADD &&
+                    strcmp(cgraph->nodes[i]->name, "inkling_ctrl_update") == 0 &&
+                    GGML_CUDA_CC_IS_RDNA3_0(ggml_cuda_info().devices[cuda_ctx->device].cc)) {
+                auto ** group = cgraph->nodes + i - 7;
+                auto * sub = group[7]->src[0];
+                auto * gained = group[7]->src[1];
+                if (sub->op == GGML_OP_SUB && sub->src[1]->op == GGML_OP_MUL && gained->op == GGML_OP_MUL) {
+                    auto * forget = sub->src[1]->src[0];
+                    auto * gain = gained->src[0];
+                    if (gain->op == GGML_OP_UNARY && forget->op == GGML_OP_UNARY &&
+                            gain->src[0]->op == GGML_OP_MUL_MAT && forget->src[0]->op == GGML_OP_MUL_MAT &&
+                            gain->src[0]->src[1] == forget->src[0]->src[1] &&
+                            gain->src[0]->src[0]->op == GGML_OP_NONE && forget->src[0]->src[0]->op == GGML_OP_NONE) {
+                        if (group[0] == forget->src[0] && group[1] == forget && group[2] == sub->src[1] &&
+                                group[3] == sub && group[4] == gain->src[0] && group[5] == gain && group[6] == gained) {
+                            std::rotate(group + 1, group + 4, group + 5);
+                            add_alloc_deps(i - 5, i);
+                        } else if (group[0] == gain->src[0] && group[1] == gain && group[2] == gained &&
+                                group[3] == forget->src[0] && group[4] == forget && group[5] == sub->src[1] && group[6] == sub) {
+                            std::rotate(group + 1, group + 3, group + 4);
+                            add_alloc_deps(i - 5, i);
+                        }
+                    }
+                }
+            }
+#endif
             // Keep the inputs of the fused gate/up/GLU MMQ kernel alive until the GLU so that they cannot alias its output (under op offload the weights are buffer copies).
             if (i + 2 < cgraph->n_nodes && cgraph->nodes[i + 2]->op == GGML_OP_GLU) {
                 ggml_tensor * glu  = cgraph->nodes[i + 2];
