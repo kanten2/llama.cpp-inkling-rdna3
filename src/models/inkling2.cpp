@@ -178,8 +178,8 @@ ggml_tensor * llama_model_inkling2::graph::clip(ggml_tensor * cur, ggml_tensor *
 // attention over the depth: mix the earlier block outputs and cur with learned queries
 ggml_tensor * llama_model_inkling2::graph::mix(const std::vector<ggml_tensor *> & blocks, ggml_tensor * cur, ggml_tensor * query, bool message_bank) {
     static const bool disable_reuse = std::getenv("LLAMA_INKLING_DISABLE_MIX_REUSE") != nullptr;
-    if (n_tokens == 1 && !disable_reuse) {
-        return decode_mix.build(ctx0, blocks, cur, query, message_bank);
+    if (!disable_reuse) {
+        return mix_cache.build(ctx0, blocks, cur, query, message_bank, n_tokens);
     }
     ggml_tensor * states = ggml_reshape_3d(ctx0, cur, n_embd, 1, n_tokens);
     for (ggml_tensor * block : blocks) {

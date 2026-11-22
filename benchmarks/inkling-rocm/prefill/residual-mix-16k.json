@@ -1,0 +1,226 @@
+{
+  "results": {
+    "base": {
+      "prompt_s": 12.676747500000001,
+      "decode_s": 5.023455,
+      "wall_s": 17.73269435000111,
+      "mix_s": 0.8873913150000021
+    },
+    "candidate": {
+      "prompt_s": 12.27243425,
+      "decode_s": 5.0408995,
+      "wall_s": 17.332629225005803,
+      "mix_s": 0.6520376100000009
+    },
+    "strata": {
+      "prompt_s": 7.3438,
+      "decode_s": 5.04845,
+      "wall_s": 12.39430999999604,
+      "mix_s": 0.096198641
+    }
+  },
+  "change": {
+    "prompt_s": {
+      "saved_s": 0.4043132500000013,
+      "saved_pct": 3.189408403062388,
+      "gap_before_s": 5.332947500000001,
+      "gap_after_s": 4.92863425
+    },
+    "decode_s": {
+      "saved_s": -0.017444499999999863,
+      "saved_pct": -0.3472609986552966,
+      "gap_before_s": -0.024994999999999656,
+      "gap_after_s": -0.0075504999999997935
+    },
+    "wall_s": {
+      "saved_s": 0.400065124995308,
+      "saved_pct": 2.2560876373267202,
+      "gap_before_s": 5.338384350005072,
+      "gap_after_s": 4.938319225009764
+    },
+    "mix_s": {
+      "saved_s": 0.2353537050000012,
+      "saved_pct": 26.5219752573306,
+      "gap_before_s": 0.7911926740000021,
+      "gap_after_s": 0.555838969000001
+    }
+  },
+  "trials": {
+    "base": [
+      {
+        "block": "base",
+        "prompt": 1,
+        "prompt_s": 12.567984000000001,
+        "decode_s": 5.039689,
+        "wall_s": 17.63945610000519
+      },
+      {
+        "block": "base",
+        "prompt": 2,
+        "prompt_s": 12.628556,
+        "decode_s": 5.014261,
+        "wall_s": 17.671020600013435
+      },
+      {
+        "block": "base-recheck",
+        "prompt": 2,
+        "prompt_s": 12.769705,
+        "decode_s": 5.025318,
+        "wall_s": 17.83156210000743
+      },
+      {
+        "block": "base-recheck",
+        "prompt": 1,
+        "prompt_s": 12.740745,
+        "decode_s": 5.014552,
+        "wall_s": 17.788738599978387
+      }
+    ],
+    "candidate": [
+      {
+        "block": "candidate",
+        "prompt": 1,
+        "prompt_s": 12.214006,
+        "decode_s": 5.051185,
+        "wall_s": 17.278704399999697
+      },
+      {
+        "block": "candidate",
+        "prompt": 2,
+        "prompt_s": 12.298152,
+        "decode_s": 5.019064,
+        "wall_s": 17.331393300002674
+      },
+      {
+        "block": "candidate-recheck",
+        "prompt": 2,
+        "prompt_s": 12.279401,
+        "decode_s": 5.040469,
+        "wall_s": 17.333038800017675
+      },
+      {
+        "block": "candidate-recheck",
+        "prompt": 1,
+        "prompt_s": 12.298178,
+        "decode_s": 5.05288,
+        "wall_s": 17.387380400003167
+      }
+    ],
+    "strata": [
+      {
+        "block": "strata",
+        "prompt": 1,
+        "prompt_s": 7.2601,
+        "decode_s": 5.233,
+        "wall_s": 12.495151000010082
+      },
+      {
+        "block": "strata",
+        "prompt": 2,
+        "prompt_s": 7.378100000000001,
+        "decode_s": 5.07,
+        "wall_s": 12.4501556000032
+      },
+      {
+        "block": "strata-recheck",
+        "prompt": 2,
+        "prompt_s": 7.3496999999999995,
+        "decode_s": 4.9603,
+        "wall_s": 12.31208129998413
+      },
+      {
+        "block": "strata-recheck",
+        "prompt": 1,
+        "prompt_s": 7.3873,
+        "decode_s": 4.9305,
+        "wall_s": 12.319852099986747
+      }
+    ]
+  },
+  "profile_by_prompt": {
+    "profile-base": [
+      {
+        "mix_s": 0.885989520000006,
+        "timed_mix_spans": 18084,
+        "pre_detail_s": 3.2819692699992875
+      },
+      {
+        "mix_s": 0.8887931099999982,
+        "timed_mix_spans": 18084,
+        "pre_detail_s": 3.2853571999992393
+      }
+    ],
+    "profile-candidate": [
+      {
+        "mix_s": 0.6452244300000031,
+        "timed_mix_spans": 10723,
+        "pre_detail_s": 3.0411935099993572
+      },
+      {
+        "mix_s": 0.6588507899999988,
+        "timed_mix_spans": 10723,
+        "pre_detail_s": 3.0891497299996415
+      }
+    ],
+    "strata-profile": [
+      {
+        "mix_s": 0.09794124
+      },
+      {
+        "mix_s": 0.094456042
+      }
+    ]
+  },
+  "bitcheck": {
+    "results": [
+      [
+        0,
+        "record",
+        0
+      ],
+      [
+        0,
+        "compare",
+        0
+      ],
+      [
+        1,
+        "record",
+        0
+      ],
+      [
+        1,
+        "compare",
+        0
+      ]
+    ],
+    "all_equal": true,
+    "fp32_values_tested_if_equal": 102429696,
+    "generated_ids_equal": true
+  },
+  "method": {
+    "gpu": "RX 7900 XTX / Windows ROCm",
+    "inputs": "two 16384-ID prompts, 256 greedy output tokens, no prompt cache, ctx 17408, F16 KV, microbatch/chunk 512",
+    "RD": "v0.2.0 standard, IQ4_NL, WMMA and direct lookup off; candidate reuses model graph buffers and fuses HIP batch normalization/transpose",
+    "Strata": "0.2.19 / Inkling 0.1.65, SQ-20, no draft, HIPBLASLt off",
+    "timing": "unprofiled end-to-end request, two passes of two inputs, second pass reverses input order and finishes with stock v0.2.0; first stock and Strata control blocks also used for the graph-reuse-only trial; arithmetic mean of four per engine",
+    "mix": "Attention-prep subgraph GPU timestamps in separate instrumented runs, 2 inputs per engine; elementwise graph matching includes concat subtrees on either input and shared operations once; interval includes internal layout changes; Strata sums run_attnres and run_attnres_norm events. Figures are observed spans rather than predictions of exact end-to-end gains."
+  },
+  "model_dll_sha256": {
+    "base": "c485d219f63f18a87217ee5d9441cc9b96a1904532c67cbd79878a41c96e3a9a",
+    "candidate": "1e37648673acd491385494e09f11439871c4630eb94b1dc5fdb5f9b01faf65f1"
+  },
+  "baseline_zip_sha256": "21d456f018d8279d50eca1e7e8095db21f35e49a172ad423803b5560f5d61cad",
+  "hip_dll_sha256": {
+    "base": "7e14ba605e689f757ea2a5f2ff522713c25ae65e670fcb4cdd41e2a57fb37250",
+    "candidate": "9a4dc60f59412057ca8c0eed54f9ebd704c6866546fd2b827a3bd310370ab0e7"
+  },
+  "compute_buffer_mib": {
+    "base": 1871.22,
+    "candidate": 1889.22
+  },
+  "input_hashes_int32le": [
+    "4d9f121d0f3cc312b8fb17d5a6a2ee45678fb67d21c9c24b724d05d5d9a5fedf",
+    "4e9f1c74d9444d225787979836f4e597df10475fb6d1ab843fc21d0f63ad2beb"
+  ]
+}

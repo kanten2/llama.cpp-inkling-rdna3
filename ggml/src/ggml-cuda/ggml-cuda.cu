@@ -5438,11 +5438,16 @@ static bool inkling_overlaps(const ggml_tensor * a, const ggml_tensor * b) {
 // Read the immutable prefix and the current residual directly. Keep the same
 // float4 lanes and block reduction as rms_norm_f32 for a 2304-wide row.
 template<bool write_transpose>
-static __global__ void inkling_decode_mix_norm(const float4 * prefix, const float4 * current,
-                                              float4 * normalized, float * transposed, int rows, float eps) {
+static __global__ void inkling_mix_norm(const float4 * prefix, const float4 * current,
+                                       float4 * normalized, float * transposed, int rows, float eps) {
     constexpr int width = 2304;
     constexpr int cols4 = width / 4;
     const int row = blockIdx.x;
+    // grid.y selects one token's [width, depth] slice in each input and output.
+    const int64_t token = blockIdx.y;
+    prefix += token*(rows - 1)*cols4;
+    current += token*cols4;
+    normalized += token*rows*cols4;
     const int tid = threadIdx.x;
     float4 value = {};
     float sum = 0.0f;
@@ -5457,7 +5462,7 @@ static __global__ void inkling_decode_mix_norm(const float4 * prefix, const floa
         const float4 result = make_float4(scale*value.x, scale*value.y, scale*value.z, scale*value.w);
         normalized[row*cols4 + tid] = result;
         if constexpr (write_transpose) {
-            float * dst = transposed + 4*tid*rows + row;
+            float * dst = transposed + token*rows*width + 4*tid*rows + row;
             dst[0] = result.x;
             dst[rows] = result.y;
             dst[2*rows] = result.z;
@@ -5466,10 +5471,11 @@ static __global__ void inkling_decode_mix_norm(const float4 * prefix, const floa
     }
 }
 
-static bool inkling_try_decode_mix(ggml_backend_cuda_context * ctx, ggml_cgraph * g, int & i) {
+static bool inkling_try_mix_norm(ggml_backend_cuda_context * ctx, ggml_cgraph * g, int & i) {
     auto * cat = g->nodes[i];
-    if (cat->op != GGML_OP_CONCAT || cat->ne[0] != 2304 || !ggml_is_matrix(cat) ||
-        cat->ne[1] < 2 || cat->ne[1] > 64 || i + 1 >= g->n_nodes || strcmp(cat->name, "inkling_decode_mix_stack") != 0 ||
+    if (cat->op != GGML_OP_CONCAT || cat->ne[0] != 2304 || cat->ne[3] != 1 || cat->ne[2] > 65535 ||
+        cat->ne[1] < 2 || cat->ne[1] > 64 || i + 1 >= g->n_nodes ||
+        strcmp(cat->name, cat->ne[2] == 1 ? "inkling_decode_mix_stack" : "inkling_prefill_mix_stack") != 0 ||
         !GGML_CUDA_CC_IS_RDNA3_0(ggml_cuda_info().devices[ctx->device].cc)) {
         return false;
     }
@@ -5480,8 +5486,9 @@ static bool inkling_try_decode_mix(ggml_backend_cuda_context * ctx, ggml_cgraph 
     auto * norm = g->nodes[i+1];
     auto * prefix = cat->src[0];
     auto * current = cat->src[1];
-    if (!enabled || norm->op != GGML_OP_RMS_NORM || norm->src[0] != cat ||
+    if ((cat->ne[2] == 1 && !enabled) || norm->op != GGML_OP_RMS_NORM || norm->src[0] != cat ||
         ggml_get_op_params_i32(cat, 0) != 1 || current->ne[1] != 1 ||
+        prefix->ne[2] != cat->ne[2] || current->ne[2] != cat->ne[2] ||
         cat->type != GGML_TYPE_F32 || norm->type != GGML_TYPE_F32 ||
         !ggml_is_contiguous(prefix) || !ggml_is_contiguous(current) || !ggml_is_contiguous(norm) ||
         !ggml_cuda_is_aligned(prefix, 16) || !ggml_cuda_is_aligned(current, 16) ||
@@ -5501,14 +5508,20 @@ static bool inkling_try_decode_mix(ggml_backend_cuda_context * ctx, ggml_cgraph 
     const auto * a = static_cast<const float4 *>(prefix->data);
     const auto * b = static_cast<const float4 *>(current->data);
     auto * out = static_cast<float4 *>(norm->data);
+    const dim3 grid(rows, (unsigned int) cat->ne[2]);
     if (transpose) {
-        inkling_decode_mix_norm<true><<<rows, 1024, 0, ctx->stream()>>>(a, b, out, static_cast<float *>(copy->data), rows, eps);
+        inkling_mix_norm<true><<<grid, 1024, 0, ctx->stream()>>>(a, b, out, static_cast<float *>(copy->data), rows, eps);
     } else {
-        inkling_decode_mix_norm<false><<<rows, 1024, 0, ctx->stream()>>>(a, b, out, nullptr, rows, eps);
+        inkling_mix_norm<false><<<grid, 1024, 0, ctx->stream()>>>(a, b, out, nullptr, rows, eps);
     }
     i += transpose ? 3 : 1;
-    static const bool announced = [] { GGML_LOG_INFO("INKLING_DECODE_MIX_ACTIVE\n"); return true; }();
-    GGML_UNUSED(announced);
+    if (cat->ne[2] > 1) {
+        static const bool announced = [] { GGML_LOG_INFO("INKLING_PREFILL_MIX_ACTIVE\n"); return true; }();
+        GGML_UNUSED(announced);
+    } else {
+        static const bool announced = [] { GGML_LOG_INFO("INKLING_DECODE_MIX_ACTIVE\n"); return true; }();
+        GGML_UNUSED(announced);
+    }
     return true;
 }
 
@@ -5874,7 +5887,7 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                 }
 
 #ifdef GGML_USE_HIP
-                if (!is_concurrent_event_active && inkling_try_decode_mix(cuda_ctx, cgraph, i)) {
+                if (!is_concurrent_event_active && inkling_try_mix_norm(cuda_ctx, cgraph, i)) {
                     continue;
                 }
                 if (!is_concurrent_event_active && inkling_try_fuse_prefill_bias(cuda_ctx, cgraph, i)) {
