@@ -242,8 +242,11 @@ ggml_tensor * llama_model_inkling2::graph::convolve(
 }
 
 // mix a cross-pass message into a looped layer input: (1 - forget)*cur + gain*message, both gated on cur and message
-ggml_tensor * llama_model_inkling2::graph::control(ggml_tensor * cur, ggml_tensor * message, const loop_layer & loop, int ctrl) {
-    ggml_tensor * gate = ggml_concat(ctx0, ggml_rms_norm(ctx0, cur, 1e-6f), ggml_rms_norm(ctx0, message, 1e-6f), 0);
+ggml_tensor * llama_model_inkling2::graph::control(ggml_tensor * cur, ggml_tensor * message, const loop_layer & loop, int ctrl,
+                                                  ggml_tensor * shared_cur_norm) {
+    ggml_tensor * gate = ggml_concat(ctx0,
+            shared_cur_norm ? shared_cur_norm : ggml_rms_norm(ctx0, cur, 1e-6f),
+            ggml_rms_norm(ctx0, message, 1e-6f), 0);
     gate = build_lora_mm(loop.ctrl_down[ctrl], gate);
 
     ggml_tensor * gain   = ggml_tanh(ctx0, build_lora_mm(loop.ctrl_gain[ctrl],   gate));
@@ -303,18 +306,24 @@ ggml_tensor * llama_model_inkling2::graph::build_layer(int il, int ip, ggml_tens
     ggml_tensor * inpSA = cur;
 
     // attention inputs: SWA layers mix one, full-attention layers one each for Q, K and V
+    const bool share_swa_input = is_swa && messages && n_tokens > 1;
     ggml_tensor * inputs[3] = {cur, cur, cur};
     if (layer.attn_res_query) {
         ggml_tensor * mixed = mix(blocks, cur, layer.attn_res_query);
-        for (int j = 0; j < 3; ++j) {
-            inputs[j] = residual_input(mixed, is_swa ? 0 : j);
+        if (share_swa_input) {
+            inputs[0] = inputs[1] = inputs[2] = residual_input(mixed, 0);
+        } else {
+            for (int j = 0; j < 3; ++j) {
+                inputs[j] = residual_input(mixed, is_swa ? 0 : j);
+            }
         }
     }
 
     if (messages) {
-        // the messages make the Q, K and V inputs of a SWA layer differ
+        // SWA shares the residual before gating. Each controller still normalizes its own message.
+        auto * shared_cur_norm = share_swa_input ? ggml_rms_norm(ctx0, inputs[0], 1e-6f) : nullptr;
         for (int j = 0; j < 3; ++j) {
-            inputs[j] = control(inputs[j], message(LOOP_CTRL_Q + j), *loop, LOOP_CTRL_Q + j);
+            inputs[j] = control(inputs[j], message(LOOP_CTRL_Q + j), *loop, LOOP_CTRL_Q + j, shared_cur_norm);
         }
     }
 

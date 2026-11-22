@@ -1,0 +1,299 @@
+{
+  "baseline_commit": "5ce7311",
+  "results": {
+    "base": {
+      "prompt_s": 12.2301435,
+      "decode_s": 5.028720125,
+      "wall_s": 17.28247476249817
+    },
+    "candidate": {
+      "prompt_s": 12.230674,
+      "decode_s": 5.011398125,
+      "wall_s": 17.266594125001575
+    },
+    "strata": {
+      "prompt_s": 7.3054749999999995,
+      "decode_s": 4.900275000000001,
+      "wall_s": 12.207846874996903
+    }
+  },
+  "change": {
+    "prompt_s": {
+      "saved_s": -0.0005304999999999893,
+      "saved_pct": -0.0043376432991237834,
+      "gap_before_s": 4.924668500000001,
+      "gap_after_s": 4.925199000000001
+    },
+    "decode_s": {
+      "saved_s": 0.01732200000000006,
+      "saved_pct": 0.3444614050777006,
+      "gap_before_s": 0.12844512499999983,
+      "gap_after_s": 0.11112312499999977
+    },
+    "wall_s": {
+      "saved_s": 0.01588063749659341,
+      "saved_pct": 0.09188867748879392,
+      "gap_before_s": 5.074627887501265,
+      "gap_after_s": 5.0587472500046715
+    }
+  },
+  "trials": {
+    "base": [
+      {
+        "block": "base",
+        "prompt": 1,
+        "prompt_s": 12.130679,
+        "decode_s": 5.036094,
+        "wall_s": 17.180297099985182
+      },
+      {
+        "block": "base",
+        "prompt": 2,
+        "prompt_s": 12.215758,
+        "decode_s": 5.071581,
+        "wall_s": 17.343675099982647
+      },
+      {
+        "block": "base-recheck",
+        "prompt": 2,
+        "prompt_s": 12.16049,
+        "decode_s": 5.008956,
+        "wall_s": 17.182741900003748
+      },
+      {
+        "block": "base-recheck",
+        "prompt": 1,
+        "prompt_s": 12.250556000000001,
+        "decode_s": 5.022018,
+        "wall_s": 17.303117100003874
+      },
+      {
+        "block": "base-repeat1",
+        "prompt": 1,
+        "prompt_s": 12.261939,
+        "decode_s": 5.002819000000001,
+        "wall_s": 17.27780569999595
+      },
+      {
+        "block": "base-repeat1",
+        "prompt": 2,
+        "prompt_s": 12.302069,
+        "decode_s": 5.025905,
+        "wall_s": 17.35315169999376
+      },
+      {
+        "block": "base-repeat2",
+        "prompt": 2,
+        "prompt_s": 12.236856,
+        "decode_s": 5.034583,
+        "wall_s": 17.284532300021965
+      },
+      {
+        "block": "base-repeat2",
+        "prompt": 1,
+        "prompt_s": 12.282801,
+        "decode_s": 5.027805,
+        "wall_s": 17.33447719999822
+      }
+    ],
+    "candidate": [
+      {
+        "block": "candidate",
+        "prompt": 1,
+        "prompt_s": 12.217074,
+        "decode_s": 5.032225,
+        "wall_s": 17.277511399996
+      },
+      {
+        "block": "candidate",
+        "prompt": 2,
+        "prompt_s": 12.279538,
+        "decode_s": 5.010114,
+        "wall_s": 17.302765899978112
+      },
+      {
+        "block": "candidate-recheck",
+        "prompt": 2,
+        "prompt_s": 12.170432,
+        "decode_s": 5.012513,
+        "wall_s": 17.196424900001148
+      },
+      {
+        "block": "candidate-recheck",
+        "prompt": 1,
+        "prompt_s": 12.221878,
+        "decode_s": 5.016252000000001,
+        "wall_s": 17.27596870000707
+      },
+      {
+        "block": "candidate-repeat1",
+        "prompt": 1,
+        "prompt_s": 12.213044,
+        "decode_s": 5.013948,
+        "wall_s": 17.240347100014333
+      },
+      {
+        "block": "candidate-repeat1",
+        "prompt": 2,
+        "prompt_s": 12.301555,
+        "decode_s": 5.026221,
+        "wall_s": 17.37547589998576
+      },
+      {
+        "block": "candidate-repeat2",
+        "prompt": 2,
+        "prompt_s": 12.207075000000001,
+        "decode_s": 4.977339,
+        "wall_s": 17.19730610001716
+      },
+      {
+        "block": "candidate-repeat2",
+        "prompt": 1,
+        "prompt_s": 12.234796000000001,
+        "decode_s": 5.002573,
+        "wall_s": 17.266953000013018
+      }
+    ],
+    "strata": [
+      {
+        "block": "strata",
+        "prompt": 1,
+        "prompt_s": 7.2591,
+        "decode_s": 4.9641,
+        "wall_s": 12.225255099998321
+      },
+      {
+        "block": "strata",
+        "prompt": 2,
+        "prompt_s": 7.3552,
+        "decode_s": 4.8246,
+        "wall_s": 12.181805000000168
+      },
+      {
+        "block": "strata-recheck",
+        "prompt": 2,
+        "prompt_s": 7.2492,
+        "decode_s": 4.974,
+        "wall_s": 12.225295399985043
+      },
+      {
+        "block": "strata-recheck",
+        "prompt": 1,
+        "prompt_s": 7.3584,
+        "decode_s": 4.8384,
+        "wall_s": 12.199032000004081
+      }
+    ]
+  },
+  "bitcheck": {
+    "matched": true,
+    "statuses": [
+      [
+        0,
+        "record",
+        0
+      ],
+      [
+        0,
+        "compare",
+        0
+      ],
+      [
+        1,
+        "record",
+        0
+      ],
+      [
+        1,
+        "compare",
+        0
+      ]
+    ],
+    "compared_fp32_values_if_matched": 102429696,
+    "greedy_token_ids_identical": true
+  },
+  "method": {
+    "gpu": "Radeon RX 7900 XTX, Windows ROCm",
+    "workload": "Two fixed 16384-token inputs, 256 greedy output tokens, no prompt cache, FP16 KV, context 17408, microbatch/chunk 512. Four runs per prompt per RD build and two per prompt for Strata; warm-up on each launch; wall time excludes model loading.",
+    "schedule": "base, candidate, Strata, Strata, candidate, base; second half uses reverse prompt order; additional RD replication candidate/base/base/candidate with both input orders",
+    "rd": "Inkling 2 Mini IQ4_NL, standard attention, direct and WMMA off; both baseline and candidate include batched residual mix fusion.",
+    "strata": "0.2.19 / Inkling engine 0.1.65, SQ-20, draft off, HIPBLASLt off"
+  },
+  "sha256": {
+    "base": {
+      "llama.dll": "1e37648673acd491385494e09f11439871c4630eb94b1dc5fdb5f9b01faf65f1",
+      "ggml-hip.dll": "9a4dc60f59412057ca8c0eed54f9ebd704c6866546fd2b827a3bd310370ab0e7"
+    },
+    "candidate": {
+      "llama.dll": "3c2a0b6387274bbad20cbb5bfd68a290745cc9cf957c915d47149c95d04ada02",
+      "ggml-hip.dll": "9a4dc60f59412057ca8c0eed54f9ebd704c6866546fd2b827a3bd310370ab0e7"
+    }
+  },
+  "input_hashes_int32le": [
+    "4d9f121d0f3cc312b8fb17d5a6a2ee45678fb67d21c9c24b724d05d5d9a5fedf",
+    "4e9f1c74d9444d225787979836f4e597df10475fb6d1ab843fc21d0f63ad2beb"
+  ],
+  "paired_block_saved_s": {
+    "prompt_s": [
+      -0.07508749999999864,
+      0.009367999999998489,
+      0.02470450000000035,
+      0.03889299999999807
+    ],
+    "decode_s": [
+      0.03266800000000014,
+      0.0011045000000002858,
+      -0.005722499999999187,
+      0.041237999999999886
+    ],
+    "wall_s": [
+      -0.028152550003142096,
+      0.006732699999702163,
+      0.0075671999948099256,
+      0.07737519999500364
+    ]
+  },
+  "per_session_means_s": {
+    "base": [
+      {
+        "prompt_s": 12.18937075,
+        "decode_s": 5.03466225,
+        "wall_s": 17.252457799993863
+      },
+      {
+        "prompt_s": 12.270916249999999,
+        "decode_s": 5.022778,
+        "wall_s": 17.312491725002474
+      }
+    ],
+    "candidate": [
+      {
+        "prompt_s": 12.2222305,
+        "decode_s": 5.0177760000000005,
+        "wall_s": 17.263167724995583
+      },
+      {
+        "prompt_s": 12.2391175,
+        "decode_s": 5.005020249999999,
+        "wall_s": 17.270020525007567
+      }
+    ],
+    "strata": [
+      {
+        "prompt_s": 7.3054749999999995,
+        "decode_s": 4.900275000000001,
+        "wall_s": 12.207846874996903
+      }
+    ]
+  },
+  "graph": {
+    "base": {
+      "prefill_graph_nodes": 11455,
+      "gpu_compute_buffer_MiB": 1889.22
+    },
+    "candidate": {
+      "prefill_graph_nodes": 11335,
+      "gpu_compute_buffer_MiB": 1884.72
+    }
+  }
+}
