@@ -2,19 +2,19 @@
 
 [English](README.md) · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-**[v0.2.0](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.0)** · Windows x64・Radeon RX 7900 XTX向け。長文入力用のWMMA Attentionを同梱し、初期設定はOFFです。
+**[v0.2.1](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.1)** · Windows x64・Radeon RX 7900 XTX向け。長文入力用のWMMA Attentionを同梱し、初期設定はOFFです。
 
-![RX 7900 XTXでのv0.2.0の性能比較。全体時間は前版の35.88秒から標準設定で32.29秒、WMMA有効で31.64秒に短縮。](benchmarks/inkling-rocm/charts/inkling-rdna3-v0.2.0-ja.png)
+![Inkling 2 Mini v0.2.0 / v0.2.1 · RX 7900 XTX](benchmarks/inkling-rocm/charts/inkling-rdna3-v0.2.1-ja.png)
 
 IQ4_NLで16,384トークンを入力し、1,000トークンを生成しました。全設定で同じ2入力を各1回測定したウォーム時の平均です。
 
 | 設定 | 入力 (tok/s) | 生成 (tok/s) | リクエスト全体 (秒) |
 |---|---:|---:|---:|
-| v0.1.0 | 1,051.05 | 49.29 | 35.88 |
-| v0.2.0 (標準) | 1,292.79 | 51.01 | 32.29 |
-| v0.2.0 (WMMA) | 1,368.17 | 50.85 | 31.64 |
+| v0.2.0 | 1,334.74 | 50.27 | 32.17 |
+| v0.2.1 (標準) | 1,405.37 | 50.11 | 31.61 |
+| v0.2.1 (WMMA) | 1,536.54 | 50.20 | 30.59 |
 
-前版比で標準設定の入力速度は23.0%、生成速度は3.5%向上し、全体時間は10.0%短縮しました。標準設定では2入力とも前版と生成トークンが全件一致しました。WMMAでは生成内容が変わることがあります。別の日本語長文読解テストは両設定とも72/88問正解でした。 [16K benchmark](https://github.com/kanten2/llama.cpp-inkling-rdna3/blob/v0.2.0/benchmarks/inkling-rocm/v0.2.0/speed.json) · [88 QA](https://github.com/kanten2/llama.cpp-inkling-rdna3/blob/v0.2.0/benchmarks/inkling-rocm/v0.2.0/reading.json)
+RX 7900 XTX・Windows ROCmで、WMMAを既定OFFのまま、v0.2.0比で16K入力速度が **5.29%向上**しました。平均リクエスト時間は **1.76%短縮**しました。検証した2入力では、標準設定で生成した各1,000トークンがv0.2.0とすべて一致しました。WMMAを有効にすると生成内容が変わる場合があります。 [16K benchmark](https://github.com/kanten2/llama.cpp-inkling-rdna3/blob/v0.2.1/benchmarks/inkling-rocm/v0.2.1/speed.json)
 
 WMMAを有効にするには、ZIPを展開したフォルダーでPowerShellを開き、次を実行します。新しいPowerShellでは標準設定で起動します。
 
@@ -55,7 +55,7 @@ Unsloth Mainline_Support UD-Q4_K_Mのtg768は、ループ層のスケール修�
 
 ## Windows ZIPの使い方
 
-1. [正式版 v0.2.0](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.0) から `inkling-rdna3-windows-gfx1100.zip` をダウンロードし、「すべて展開」を選びます。公開ページにZIPのSHA-256もあります。ROCmランタイムは同梱されています。対応するAMDドライバーと [Visual C++ x64ランタイム](https://aka.ms/vs/17/release/vc_redist.x64.exe) が必要です。
+1. [正式版 v0.2.1](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.1) から `inkling-rdna3-windows-gfx1100.zip` をダウンロードし、「すべて展開」を選びます。公開ページにZIPのSHA-256もあります。ROCmランタイムは同梱されています。対応するAMDドライバーと [Visual C++ x64ランタイム](https://aka.ms/vs/17/release/vc_redist.x64.exe) が必要です。
 2. [IQ4_NL](https://huggingface.co/ggml-org/Inkling-2-Mini-GGUF) または [Unsloth Mainline_Support UD-Q4_K_M](https://huggingface.co/unsloth/Inkling-2-Mini-GGUF/tree/main/Mainline_Support) のGGUFを別途用意します。Unsloth版は拡張子を `.gguf_file` から `.gguf` に変更します。
 3. GGUFを **chat.cmd** にドラッグすると、ブラウザーにコンテキスト4,096トークンのローカルチャットが開きます。利用中はコンソールを開いたままにします。
 4. 測速時はチャットのコンソールで **Ctrl+C** を押して停止し、同じGGUFを **bench.cmd** にドラッグします。GPU名と、ウォームアップ後に768トークンを生成した速度が表示されます。

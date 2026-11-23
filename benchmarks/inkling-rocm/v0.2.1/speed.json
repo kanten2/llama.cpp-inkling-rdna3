@@ -1,0 +1,41 @@
+{
+  "v020": {
+    "prefill": 1334.7425479753701,
+    "decode": 50.27011868927396,
+    "prompt_ms": 12275.806499999999,
+    "decode_ms": 19872.7575,
+    "wall": 32.172476499996264
+  },
+  "default": {
+    "prefill": 1405.3656918358215,
+    "decode": 50.113931641592615,
+    "prompt_ms": 11658.3365,
+    "decode_ms": 19934.5815,
+    "wall": 31.60620770000969
+  },
+  "wmma": {
+    "prefill": 1536.5411173198113,
+    "decode": 50.20363822750052,
+    "prompt_ms": 10662.9555,
+    "decode_ms": 19899.031,
+    "wall": 30.585000849998323
+  },
+  "matching_generated_tokens": {
+    "default": [
+      1000,
+      1000
+    ],
+    "wmma": [
+      23,
+      22
+    ]
+  },
+  "baseline_zip_sha256": "21d456f018d8279d50eca1e7e8095db21f35e49a172ad423803b5560f5d61cad",
+  "model": "Inkling-2-Mini-IQ4_NL.gguf",
+  "gpu": "Radeon RX 7900 XTX",
+  "input_tokens": 16384,
+  "generated_tokens": 1000,
+  "warm_requests_per_configuration": 2,
+  "model_inputs": "Same two prompts, one run each",
+  "default_wmma": false
+}

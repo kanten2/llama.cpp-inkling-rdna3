@@ -5,13 +5,89 @@
 #include "fattn-mma-f16.cuh"
 
 struct inkling_head_bias {
+    static constexpr bool has_far_tiles = false;
     inkling_relative_bias bias;
     int head;
 
     __device__ half read(int q, int k, int stride) const {
         return fattn_tile_bias(nullptr, stride, q, k, head, bias);
     }
+
+    __device__ bool skip_tile(int, int) const { return false; }
 };
+
+static constexpr int inkling_tile_cols = 64;
+
+struct inkling_global_head_bias : inkling_head_bias {
+    static constexpr bool has_far_tiles = true;
+    const uint8_t * far;
+    int key_tiles;
+    int last_row;
+};
+
+// A wave tests the actual row IDs for one query and one block of keys.
+// The final (padded) table row already includes the per-query sink subtraction.
+static __global__ void inkling_prepare_far_tiles(inkling_global_head_bias * heads, uint8_t * far,
+                                                 inkling_relative_bias bias, int nk, int nq, int width, int last_row) {
+    const int lane = threadIdx.x;
+    const int q = blockIdx.y * blockDim.y + threadIdx.y;
+    if (!blockIdx.x && !blockIdx.y && !threadIdx.y && lane < 24) {
+        heads[lane] = {{bias, lane}, far, int(gridDim.x), last_row};
+    }
+    if (q >= nq) {
+        return;
+    }
+    bool same = true;
+    for (int i = lane; i < width && blockIdx.x * width + i < nk; i += 32) {
+        same &= bias.rows[q * bias.index_stride + blockIdx.x * width + i] == last_row;
+    }
+    const bool all_far = __all(same);
+    if (!lane) {
+        far[q * gridDim.x + blockIdx.x] = all_far;
+    }
+}
+
+struct inkling_swa_head_bias : inkling_head_bias {
+    const uint8_t * visible;
+    int key_tiles;
+
+    __device__ bool skip_tile(int qt, int kt) const { return !visible[qt * key_tiles + kt]; }
+};
+
+// Test the actual mask so cache wraps, unused slots and partial tiles need no position assumptions.
+static __global__ void inkling_prepare_swa_tiles(inkling_swa_head_bias * heads, uint8_t * visible,
+                                                 inkling_relative_bias bias, int nq, int nk) {
+    if (blockIdx.x == 0 && blockIdx.y == 0 && threadIdx.y == 0 && threadIdx.x < 24) {
+        heads[threadIdx.x] = {{bias, int(threadIdx.x)}, visible, int(gridDim.x)};
+    }
+    bool any = false;
+    const int k = blockIdx.x * blockDim.x + threadIdx.x;
+    if (k < nk) {
+        const int q0 = blockIdx.y * inkling_tile_cols;
+        for (int q = q0 + threadIdx.y; q < min(nq, q0 + inkling_tile_cols); q += blockDim.y) {
+            const int64_t idx = int64_t(q) * nk + k;
+            const float m = bias.base_mask ? __half2float(bias.base_mask[idx]) : bias.base_mask_f32[idx];
+            if (m != -INFINITY) {
+                any = true;
+                break;
+            }
+        }
+    }
+    const int block_visible = __syncthreads_or(any);
+    if (threadIdx.x == 0 && threadIdx.y == 0) {
+        visible[blockIdx.y * gridDim.x + blockIdx.x] = block_visible != 0;
+    }
+}
+
+template<typename Head>
+static void inkling_launch_wmma(ggml_backend_cuda_context & ctx, ggml_tensor * dst, Head * heads) {
+    ggml_tensor mask_view = *dst->src[3];
+    mask_view.data = heads;
+    mask_view.nb[2] = sizeof(Head);
+    ggml_tensor output = *dst;
+    output.src[3] = &mask_view;
+    launch_mma_f16_case<128, 128, inkling_tile_cols, 1, Head>(ctx, &output);
+}
 
 static __global__ void inkling_set_head_bias(inkling_head_bias * heads, inkling_relative_bias bias) {
     heads[threadIdx.x] = {bias, int(threadIdx.x)};
@@ -30,14 +106,30 @@ void ggml_hip_inkling_relative_attention(ggml_backend_cuda_context & ctx, ggml_t
         return setting && strcmp(setting, "1") == 0;
     }();
     if (wmma) {
-        ggml_cuda_pool_alloc<inkling_head_bias> heads(ctx.pool(), 24);
-        inkling_set_head_bias<<<1, 24, 0, ctx.stream()>>>(heads.get(), bias);
-        ggml_tensor mask_view = *dst->src[3];
-        mask_view.data = heads.get();
-        mask_view.nb[2] = sizeof(inkling_head_bias);
-        ggml_tensor output = *dst;
-        output.src[3] = &mask_view;
-        launch_mma_f16_case<128, 128, 64, 1, inkling_head_bias>(ctx, &output);
+        const int cc = ggml_cuda_info().devices[ctx.device].cc;
+        // Backend copies may add a device prefix and copy index to the graph input name.
+        if (GGML_CUDA_CC_IS_RDNA3_0(cc) && strstr(ids->name, "attn_inp_rel_pos_swa") != nullptr) {
+            const int tile_keys = ggml_cuda_fattn_mma_get_nbatch_fa(128, 128, inkling_tile_cols, cc);
+            const int nk = mask->ne[0], nq = mask->ne[1];
+            const dim3 grid((nk + tile_keys - 1) / tile_keys, (nq + inkling_tile_cols - 1) / inkling_tile_cols);
+            ggml_cuda_pool_alloc<uint8_t> visible(ctx.pool(), size_t(grid.x) * grid.y);
+            ggml_cuda_pool_alloc<inkling_swa_head_bias> heads(ctx.pool(), 24);
+            inkling_prepare_swa_tiles<<<grid, dim3(tile_keys, 4), 0, ctx.stream()>>>(heads.get(), visible.get(), bias, nq, nk);
+            inkling_launch_wmma(ctx, dst, heads.get());
+        } else if (GGML_CUDA_CC_IS_RDNA3_0(cc) && strstr(ids->name, "attn_inp_rel_pos") != nullptr) {
+            const int width = ggml_cuda_fattn_mma_get_nbatch_fa(128, 128, inkling_tile_cols, cc);
+            const int nk = mask->ne[0], nq = mask->ne[1];
+            const int key_tiles = (nk + width - 1) / width;
+            ggml_cuda_pool_alloc<uint8_t> far(ctx.pool(), size_t(key_tiles) * nq);
+            ggml_cuda_pool_alloc<inkling_global_head_bias> heads(ctx.pool(), 24);
+            inkling_prepare_far_tiles<<<dim3(key_tiles, (nq + 7) / 8), dim3(32, 8), 0, ctx.stream()>>>(
+                heads.get(), far.get(), bias, nk, nq, width, table->ne[1] - 1);
+            inkling_launch_wmma(ctx, dst, heads.get());
+        } else {
+            ggml_cuda_pool_alloc<inkling_head_bias> heads(ctx.pool(), 24);
+            inkling_set_head_bias<<<1, 24, 0, ctx.stream()>>>(heads.get(), bias);
+            inkling_launch_wmma(ctx, dst, heads.get());
+        }
         static const bool announced = [] { GGML_LOG_INFO("INKLING_WMMA_ACTIVE\n"); return true; }();
         GGML_UNUSED(announced);
         return;

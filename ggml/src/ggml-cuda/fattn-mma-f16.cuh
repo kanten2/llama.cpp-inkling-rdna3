@@ -533,6 +533,23 @@ static __device__ __forceinline__ void flash_attn_ext_f16_load_mask(
         // Each wave gathers one query's bias row directly into the WMMA shared tile.
         for (int j = threadIdx.y; j < ncols1; j += nwarps) {
             const int q = fastmodulo(j0 + j, ne01);
+            if constexpr (Mask::has_far_tiles) {
+                if (mask_h->far[q * mask_h->key_tiles + k_VKQ_0 / nbatch_fa]) {
+                    const auto & bias = mask_h->bias;
+                    const float shifted_zero = bias.table[q * bias.table_query_stride +
+                        mask_h->last_row * bias.table_row_stride + mask_h->head];
+                    for (int k = threadIdx.x; k < nbatch_fa; k += warp_size) {
+                        half value = half(0.0f);
+                        if (!oob_check || k < i_sup) {
+                            const int idx = q * stride_mask + k_VKQ_0 + k;
+                            const float mask = bias.base_mask ? __half2float(bias.base_mask[idx]) : bias.base_mask_f32[idx];
+                            value = __float2half_rn(shifted_zero + mask);
+                        }
+                        tile_mask[j * (nbatch_fa + 8) + k] = value;
+                    }
+                    continue;
+                }
+            }
             for (int k = threadIdx.x; k < nbatch_fa; k += warp_size) {
                 tile_mask[j * (nbatch_fa + 8) + k] = (!oob_check || k < i_sup)
                     ? mask_h->read(q, k_VKQ_0 + k, stride_mask) : half(0.0f);
@@ -669,6 +686,11 @@ static __device__ __forceinline__ void flash_attn_ext_f16_iter(
     constexpr int stride_tile_K = swz ? nbatch_K2 : nbatch_K2 + 4;
     constexpr int stride_tile_V = V_is_K_view ? stride_tile_K : (swz ? nbatch_V2 : nbatch_V2 + 4);
 
+    if constexpr (!std::is_same_v<Mask, half> && nstages <= 1) {
+        if (mask_h->skip_tile(jt, kb0)) {
+            return;
+        }
+    }
     const int k_VKQ_0 = kb0 * nbatch_fa;
 #if defined(TURING_MMA_AVAILABLE)
     T_C_KQ KQ_C[nbatch_fa/(np*(cols_per_warp == 8 ? T_C_KQ::I : T_C_KQ::J))];

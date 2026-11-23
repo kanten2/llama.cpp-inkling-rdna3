@@ -2,19 +2,19 @@
 
 [English](README.md) · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-**[v0.2.0](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.0)** · 適用於 Windows x64 和 Radeon RX 7900 XTX。長文輸入的 WMMA Attention 預設關閉。
+**[v0.2.1](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.1)** · 適用於 Windows x64 和 Radeon RX 7900 XTX。長文輸入的 WMMA Attention 預設關閉。
 
-![RX 7900 XTX 上的效能比較。總耗時從 v0.1.0 的 35.88 秒降至 v0.2.0 預設設定的 32.29 秒，啟用 WMMA 後為 31.64 秒。](benchmarks/inkling-rocm/charts/inkling-rdna3-v0.2.0-zh-Hant.png)
+![Inkling 2 Mini v0.2.0 / v0.2.1 · RX 7900 XTX](benchmarks/inkling-rocm/charts/inkling-rdna3-v0.2.1-zh-Hant.png)
 
 IQ4_NL，輸入 16,384 個 token，生成 1,000 個 token。每個設定均在暖機後對相同的兩個輸入各測一次，表中為平均值。
 
 | 設定 | 輸入 (tok/s) | 生成 (tok/s) | 請求耗時 (秒) |
 |---|---:|---:|---:|
-| v0.1.0 | 1,051.05 | 49.29 | 35.88 |
-| v0.2.0 (預設) | 1,292.79 | 51.01 | 32.29 |
-| v0.2.0 (WMMA) | 1,368.17 | 50.85 | 31.64 |
+| v0.2.0 | 1,334.74 | 50.27 | 32.17 |
+| v0.2.1 (預設) | 1,405.37 | 50.11 | 31.61 |
+| v0.2.1 (WMMA) | 1,536.54 | 50.20 | 30.59 |
 
-預設配置的輸入速度提高 23.0%，生成速度提高 3.5%，請求耗時縮短 10.0%。兩個輸入的生成 token 均與前版完全一致。啟用 WMMA 後回答可能改變。日文閱讀測試中兩種設定均答對 72/88 題。 [16K benchmark](https://github.com/kanten2/llama.cpp-inkling-rdna3/blob/v0.2.0/benchmarks/inkling-rocm/v0.2.0/speed.json) · [88 QA](https://github.com/kanten2/llama.cpp-inkling-rdna3/blob/v0.2.0/benchmarks/inkling-rocm/v0.2.0/reading.json)
+在 RX 7900 XTX 與 Windows ROCm 上，預設關閉 WMMA 時，16K 輸入處理速度比 v0.2.0 **提升 5.29%**，平均請求時間**縮短 1.76%**。兩組測試輸入各生成 1,000 個詞元，預設設定下皆與 v0.2.0 完全一致。啟用 WMMA 後，貪婪解碼的輸出可能改變。 [16K benchmark](https://github.com/kanten2/llama.cpp-inkling-rdna3/blob/v0.2.1/benchmarks/inkling-rocm/v0.2.1/speed.json)
 
 在解壓縮目錄開啟 PowerShell，執行以下命令啟用 WMMA。新開的 PowerShell 使用預設設定。
 
@@ -55,7 +55,7 @@ $env:INKLING_ATTN_WMMA = '1'
 
 ## 使用 Windows ZIP
 
-1. 從 [v0.2.0 正式版頁面](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.0) 下載 `inkling-rdna3-windows-gfx1100.zip`，在檔案總管選取「全部解壓縮」。發行頁面提供 ZIP 的 SHA-256 校驗值。壓縮檔已包含 ROCm 執行階段，系統需要相容的 AMD 驅動程式與 [Visual C++ x64 執行階段](https://aka.ms/vs/17/release/vc_redist.x64.exe)。
+1. 從 [v0.2.1 正式版頁面](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.1) 下載 `inkling-rdna3-windows-gfx1100.zip`，在檔案總管選取「全部解壓縮」。發行頁面提供 ZIP 的 SHA-256 校驗值。壓縮檔已包含 ROCm 執行階段，系統需要相容的 AMD 驅動程式與 [Visual C++ x64 執行階段](https://aka.ms/vs/17/release/vc_redist.x64.exe)。
 2. 另行下載 [IQ4_NL](https://huggingface.co/ggml-org/Inkling-2-Mini-GGUF) 或 [Unsloth Mainline_Support UD-Q4_K_M](https://huggingface.co/unsloth/Inkling-2-Mini-GGUF/tree/main/Mainline_Support) 的 GGUF。使用 Unsloth 版時，請將副檔名從 `.gguf_file` 改為 `.gguf`。
 3. 將 GGUF 拖曳到 **chat.cmd**，瀏覽器會開啟上下文長度為 4,096 個 token 的本機文字聊天介面。聊天期間請保持主控台開啟。
 4. 測速前在聊天主控台按 **Ctrl+C** 停止服務，再將同一 GGUF 拖曳到 **bench.cmd**。畫面會顯示顯示卡名稱，以及暖機後生成 768 個 token 的速度。

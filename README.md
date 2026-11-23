@@ -2,19 +2,19 @@
 
 [English](README.md) · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-**[v0.2.0](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.0)** · Windows x64 · Radeon RX 7900 XTX. Long-prompt WMMA Attention is included and defaults to off.
+**[v0.2.1](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.1)** · Windows x64 · Radeon RX 7900 XTX. Long-prompt WMMA Attention is included and defaults to off.
 
-![v0.2.0 benchmark on RX 7900 XTX. Request time fell from 35.88 s to 32.29 s by default and to 31.64 s with WMMA.](benchmarks/inkling-rocm/charts/inkling-rdna3-v0.2.0-en.png)
+![Inkling 2 Mini v0.2.0 / v0.2.1 · RX 7900 XTX](benchmarks/inkling-rocm/charts/inkling-rdna3-v0.2.1-en.png)
 
 IQ4_NL, 16,384 input tokens and 1,000 generated tokens. Each configuration ran the same two prompts once each. Values are means of warm requests.
 
 | Mode | Prefill (tok/s) | Decode (tok/s) | Request (s) |
 |---|---:|---:|---:|
-| v0.1.0 | 1,051.05 | 49.29 | 35.88 |
-| v0.2.0 (Default) | 1,292.79 | 51.01 | 32.29 |
-| v0.2.0 (WMMA) | 1,368.17 | 50.85 | 31.64 |
+| v0.2.0 | 1,334.74 | 50.27 | 32.17 |
+| v0.2.1 (Default) | 1,405.37 | 50.11 | 31.61 |
+| v0.2.1 (WMMA) | 1,536.54 | 50.20 | 30.59 |
 
-Default throughput improved 23.0% for prefill and 3.5% for decode. Request time fell 10.0%. Both default continuations matched v0.1.0 token for token. With WMMA, greedy answers can change. Both modes scored 72/88 on a separate Japanese reading test. [16K benchmark](https://github.com/kanten2/llama.cpp-inkling-rdna3/blob/v0.2.0/benchmarks/inkling-rocm/v0.2.0/speed.json) · [88 QA](https://github.com/kanten2/llama.cpp-inkling-rdna3/blob/v0.2.0/benchmarks/inkling-rocm/v0.2.0/reading.json)
+On RX 7900 XTX with Windows ROCm, default prefill throughput improved **5.29%** over v0.2.0. Mean request time fell **1.76%**. Both default runs matched all 1,000 generated tokens from v0.2.0. Opt-in WMMA can change greedy outputs. [16K benchmark](https://github.com/kanten2/llama.cpp-inkling-rdna3/blob/v0.2.1/benchmarks/inkling-rocm/v0.2.1/speed.json)
 
 To enable WMMA, run these commands in PowerShell from the extracted ZIP folder. A fresh shell uses the defaults.
 
@@ -61,7 +61,7 @@ The earlier IQ4_NL decode benchmark compares the official b12606 distribution wi
 
 You need Windows x64, a Radeon RX 7900 XTX with a compatible AMD driver, and the Visual C++ x64 runtime. The ZIP includes the ROCm runtime. [Microsoft Visual C++ x64 runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe)
 
-1. Download `inkling-rdna3-windows-gfx1100.zip` and choose **Extract All** in Explorer. The release also includes the ZIP's SHA-256 checksum. [Download v0.2.0 for Windows](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.0)
+1. Download `inkling-rdna3-windows-gfx1100.zip` and choose **Extract All** in Explorer. The release also includes the ZIP's SHA-256 checksum. [Download v0.2.1 for Windows](https://github.com/kanten2/llama.cpp-inkling-rdna3/releases/tag/v0.2.1)
 2. Download a compatible Inkling 2 Mini text model separately. For the Unsloth version, choose the file in `Mainline_Support` and rename its extension from `.gguf_file` to `.gguf`. [IQ4_NL model](https://huggingface.co/ggml-org/Inkling-2-Mini-GGUF) · [Unsloth UD-Q4_K_M model](https://huggingface.co/unsloth/Inkling-2-Mini-GGUF/tree/main/Mainline_Support)
 3. Drag the GGUF onto **`chat.cmd`**. Once the model loads, your default browser opens a local text chat with a 4,096-token context. Keep the console open while chatting.
 4. To check speed, press **Ctrl+C in the chat console** to stop the server, then drag the same GGUF onto **`bench.cmd`**. It prints the GPU name and the speed of one timed 768-token generation after warm-up.
