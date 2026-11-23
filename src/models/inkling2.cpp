@@ -212,7 +212,11 @@ ggml_tensor * llama_model_inkling2::graph::convolve(
 
     ggml_tensor * past = ggml_view_3d(ctx0, history, n_conv - 1, n_channels, n_seqs, history->nb[1], history->nb[2], offset*history->nb[1]);
 
-    ggml_tensor * x = ggml_transpose(ctx0, ggml_reshape_3d(ctx0, cur, n_channels, n_seq_tokens, n_seqs));
+    ggml_tensor * channels = ggml_is_contiguous(cur)
+            ? ggml_reshape_3d(ctx0, cur, n_channels, n_seq_tokens, n_seqs)
+            : ggml_view_3d(ctx0, cur, n_channels, n_seq_tokens, n_seqs,
+                    cur->nb[1], n_seq_tokens * cur->nb[1], 0);
+    ggml_tensor * x = ggml_transpose(ctx0, channels);
     x = ggml_concat(ctx0, past, x, 0);
 
     build_conv_state_store(inp, state, x, n_conv - 1, offset*(n_conv - 1)*ggml_element_size(state));
@@ -347,9 +351,21 @@ ggml_tensor * llama_model_inkling2::graph::build_layer(int il, int ip, ggml_tens
     // self-attention
     {
         ggml_tensor * Qcur = build_lora_mm(layer.wq, inputs[0]);
-        ggml_tensor * Kcur = convolve(build_lora_mm(layer.wk, inputs[1]), layer.attn_k_conv,
+        ggml_tensor * kv = nullptr;
+        if (n_tokens > 1 && layer.wkv && inputs[1] == inputs[2] && loras->empty()) {
+            kv = build_lora_mm(layer.wkv, inputs[1]);
+            cb(kv, "inkling_kv_proj", il);
+        }
+        auto kv_projection = [&](int index) {
+            if (!kv) {
+                return build_lora_mm(index == 0 ? layer.wk : layer.wv, inputs[index + 1]);
+            }
+            return ggml_view_2d(ctx0, kv, n_embd_k_gqa, n_tokens, kv->nb[1],
+                    index * n_embd_k_gqa * kv->nb[0]);
+        };
+        ggml_tensor * Kcur = convolve(kv_projection(0), layer.attn_k_conv,
                 is_swa ? nullptr : build_lora_mm(layer.attn_k_conv_proj, inputs[1]), state, history, recr, 0);
-        ggml_tensor * Vcur = convolve(build_lora_mm(layer.wv, inputs[2]), layer.attn_v_conv,
+        ggml_tensor * Vcur = convolve(kv_projection(1), layer.attn_v_conv,
                 is_swa ? nullptr : build_lora_mm(layer.attn_v_conv_proj, inputs[2]), state, history, recr, n_embd_k_gqa);
         ggml_tensor * Rcur = build_lora_mm(layer.attn_rel, inputs[0]);
 

@@ -2208,6 +2208,44 @@ bool llama_model_base::load_tensors(llama_model_loader & ml) {
 
     load_tensors_hadamard();
 
+    const char * pack_kv = std::getenv("INKLING_PREFILL_KV");
+    if (arch == LLM_ARCH_INKLING2_LOOP && pack_kv && std::strcmp(pack_kv, "1") == 0 &&
+            hdmd.weight_blocks.empty() && hdmd.inverse_blocks.empty()) {
+        for (uint32_t il = 0; il < layers.size(); ++il) {
+            auto & layer = layers[il];
+            auto * k = layer.wk;
+            auto * v = layer.wv;
+            if (!hparams.is_swa(il) || !k || !v || k->type != GGML_TYPE_Q8_0 || v->type != k->type ||
+                    !ggml_are_same_shape(k, v) || !ggml_is_matrix(k) || !ggml_is_contiguous(k) ||
+                    !ggml_is_contiguous(v) || !k->buffer || !v->buffer) {
+                continue;
+            }
+            auto buft = ggml_backend_buffer_get_type(k->buffer);
+            auto dev = ggml_backend_buft_get_device(buft);
+            if (!dev || ggml_backend_dev_type(dev) != GGML_BACKEND_DEVICE_TYPE_GPU ||
+                    ggml_backend_dev_buffer_type(dev) != buft || ggml_backend_buffer_get_type(v->buffer) != buft) {
+                continue;
+            }
+            ggml_context_ptr ctx { ggml_init({ggml_tensor_overhead(), nullptr, true}) };
+            auto * kv = ggml_new_tensor_2d(ctx.get(), k->type, k->ne[0], k->ne[1] + v->ne[1]);
+            ggml_format_name(kv, "blk.%u.attn_kv.weight", il);
+            ggml_backend_buffer_ptr buffer { ggml_backend_alloc_ctx_tensors_from_buft(ctx.get(), buft) };
+            if (!buffer) {
+                continue;
+            }
+            ggml_backend_buffer_set_usage(buffer.get(), GGML_BACKEND_BUFFER_USAGE_WEIGHTS);
+            std::vector<uint8_t> bytes(ggml_nbytes(k));
+            ggml_backend_tensor_get(k, bytes.data(), 0, bytes.size());
+            ggml_backend_tensor_set(kv, bytes.data(), 0, bytes.size());
+            ggml_backend_tensor_get(v, bytes.data(), 0, bytes.size());
+            ggml_backend_tensor_set(kv, bytes.data(), bytes.size(), bytes.size());
+            std::vector<ggml_backend_buffer_ptr> buffers;
+            buffers.emplace_back(std::move(buffer));
+            pimpl->ctxs_bufs.emplace_back(std::move(ctx), std::move(buffers));
+            layer.wkv = kv;
+        }
+    }
+
     return true;
 }
 
