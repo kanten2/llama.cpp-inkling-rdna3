@@ -49,15 +49,20 @@ static void scale_f32_cuda(const T * x, T * dst, const float scale, const float 
 
 #ifdef GGML_USE_HIP
 static __global__ void row_clip_f32(const float * x, float * dst, int width, float threshold) {
-    // Match the small-row SUM_ROWS reduction: one 512-thread block per row.
+    // Match SUM_ROWS with one block per row, including the same reduction order.
     const int col = threadIdx.x;
-    const int offset = blockIdx.x * width + col;
+    const int64_t row = int64_t(blockIdx.x) * width;
+    const int64_t offset = row + col;
     const float value = col < width ? x[offset] : 0.0f;
     // Materialize FP32 squares before the reduction, as in SQR followed by SUM_ROWS.
     __shared__ float squares[128];
     __shared__ float factor;
     if (col < width) {
         squares[col] = value * value;
+    }
+    for (int i = col + blockDim.x; i < width; i += blockDim.x) {
+        const float v = x[row + i];
+        squares[i] = v * v;
     }
     __syncthreads();
     const float sum = reduce_row_f32(squares, width);
@@ -68,10 +73,16 @@ static __global__ void row_clip_f32(const float * x, float * dst, int width, flo
     if (col < width) {
         dst[offset] = value * factor;
     }
+    for (int i = col + blockDim.x; i < width; i += blockDim.x) {
+        dst[row + i] = x[row + i] * factor;
+    }
 }
 
 void ggml_cuda_op_row_clip(ggml_backend_cuda_context & ctx, const ggml_tensor * x, ggml_tensor * dst, float threshold) {
-    const auto params = ggml_cuda_kernel_launch_params(x->ne[1], 512, 0, ctx.stream());
+    const int nrows = (int) ggml_nrows(x);
+    const int nsm = ggml_cuda_info().devices[ctx.device].nsm;
+    const int threads = ggml_is_matrix(x) || nrows / nsm < 2 ? 512 : 32;
+    const auto params = ggml_cuda_kernel_launch_params(nrows, threads, 0, ctx.stream());
     ggml_cuda_kernel_launch(row_clip_f32, params, (const float *) x->data, (float *) dst->data, (int) x->ne[0], threshold);
 }
 

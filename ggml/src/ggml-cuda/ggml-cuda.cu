@@ -4713,7 +4713,7 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
         const uintptr_t dst_addr = reinterpret_cast<uintptr_t>(dst->data);
         const bool safe_alias = src_addr == dst_addr ||
                 std::max(src_addr, dst_addr) - std::min(src_addr, dst_addr) >= ggml_nbytes(x);
-        if (ggml_is_matrix(x) && ((x->ne[0] == 128 && (x->ne[1] == 8 || x->ne[1] == 24)) ||
+        if (x->ne[3] == 1 && ggml_nrows(x) <= INT32_MAX && ((x->ne[0] == 128 && (x->ne[1] == 8 || x->ne[1] == 24)) ||
                 (x->ne[0] == 16 && x->ne[1] == 24)) && x->type == GGML_TYPE_F32 &&
                 ggml_is_contiguous(x) && ggml_is_contiguous(dst) && safe_alias &&
                 n[1]->src[0] == node && n[2]->src[0] == n[1] && n[3]->src[0] == n[2] &&
