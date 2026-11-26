@@ -2211,6 +2211,7 @@ bool llama_model_base::load_tensors(llama_model_loader & ml) {
     const char * pack_kv = std::getenv("INKLING_PREFILL_KV");
     if (arch == LLM_ARCH_INKLING2_LOOP && pack_kv && std::strcmp(pack_kv, "1") == 0 &&
             hdmd.weight_blocks.empty() && hdmd.inverse_blocks.empty()) {
+        std::map<std::pair<const ggml_tensor *, const ggml_tensor *>, ggml_tensor *> packed_cache;
         for (uint32_t il = 0; il < layers.size(); ++il) {
             auto & layer = layers[il];
             auto * k = layer.wk;
@@ -2218,6 +2219,12 @@ bool llama_model_base::load_tensors(llama_model_loader & ml) {
             if (!hparams.is_swa(il) || !k || !v || k->type != GGML_TYPE_Q8_0 || v->type != k->type ||
                     !ggml_are_same_shape(k, v) || !ggml_is_matrix(k) || !ggml_is_contiguous(k) ||
                     !ggml_is_contiguous(v) || !k->buffer || !v->buffer) {
+                continue;
+            }
+            auto key = std::make_pair((const ggml_tensor *) k, (const ggml_tensor *) v);
+            auto it = packed_cache.find(key);
+            if (it != packed_cache.end()) {
+                layer.wkv = it->second;
                 continue;
             }
             auto buft = ggml_backend_buffer_get_type(k->buffer);
@@ -2243,6 +2250,7 @@ bool llama_model_base::load_tensors(llama_model_loader & ml) {
             buffers.emplace_back(std::move(buffer));
             pimpl->ctxs_bufs.emplace_back(std::move(ctx), std::move(buffers));
             layer.wkv = kv;
+            packed_cache[key] = kv;
         }
     }
 
