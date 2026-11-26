@@ -918,18 +918,12 @@ static __device__ __forceinline__ float ggml_cuda_ue4m3_to_fp32(uint8_t x) {
     const __nv_fp8_e4m3 xf = *reinterpret_cast<const __nv_fp8_e4m3 *>(&bits);
     return static_cast<float>(xf) / 2;
 #else
-    if (x == 0 || (x == 0x7F && x != 0xFF)) { // Convert NaN to 0.0f
-        return 0.0f;
-    }
-    const int exp = (x >> 3) & 0xF;
-    const int man = x & 0x7;
-    float raw;
-    if (exp == 0) {
-        raw = ldexpf((float) man, -9);
-    } else {
-        raw = ldexpf(1.0f + (float) man / 8.0f, exp - 7);
-    }
-    return static_cast<float>(raw / 2);
+    // Bit-exact branchless UE4M3 -> FP32 * 0.5f (matches ggml_ue4m3_to_fp32 on all 256 inputs).
+    const uint32_t mag = x & 0x7Fu;
+    const bool is_sub = mag < 8u;
+    const uint32_t bits = (mag << 20) + (is_sub ? (120u << 23) : (119u << 23));
+    const float res = __uint_as_float(bits) - (is_sub ? 0.0078125f : 0.0f);
+    return (x == 0x7Fu) ? 0.0f : res;
 #endif // defined(FP8_AVAILABLE) && !defined(GGML_USE_HIP)
 #endif // defined(GGML_USE_HIP) && defined(CDNA3) && defined(FP8_AVAILABLE) && HIP_VERSION >= 60200000
 }
@@ -939,6 +933,15 @@ static __host__ __device__ __forceinline__ float ggml_cuda_f8_e4m3_to_fp32(uint8
     __nv_fp8_e4m3 xf;
     xf.__x = x;
     return static_cast<float>(xf);
+#elif defined(__HIP_DEVICE_COMPILE__) || defined(__CUDA_ARCH__)
+    const uint32_t mag = x & 0x7Fu;
+    if (mag == 0x7Fu) {
+        return NAN;
+    }
+    const bool is_sub = mag < 8u;
+    const uint32_t bits = (mag << 20) + (is_sub ? (121u << 23) : (120u << 23));
+    const float val = __uint_as_float(bits) - (is_sub ? 0.015625f : 0.0f);
+    return __uint_as_float(__float_as_uint(val) | (uint32_t(x & 0x80u) << 24));
 #else
     const uint8_t magnitude = x & 0x7F;
     if (magnitude == 0x7F) {

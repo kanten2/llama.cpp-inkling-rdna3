@@ -1180,6 +1180,194 @@ static __global__ void mul_mat_vec_q_moe(
     }
 }
 
+#ifdef GGML_USE_HIP
+// Dedicated RDNA3 Wave32 NVFP4 MMVQ/MMID kernel for ncols_dst == 1:
+// 4 threads per row (1 thread per NVFP4 subblock of 16 weights), 8 rows per Wave32, 4 waves = 32 rows/block.
+// Loads quantized y (block_q8_1) once into LDS per 32 rows -> 100% lane utilization for any K % 64 == 0,
+// zero __syncthreads() in reduction, coalesced 36-byte block loads across 4 adjacent lanes.
+template <bool has_scale>
+__launch_bounds__(128, 2)
+static __global__ void mul_mat_vec_nvfp4_rdna3(
+        const void * __restrict__ vx_ptr, const void * __restrict__ vy_ptr, const int32_t * __restrict__ ids_ptr,
+        const float * __restrict__ x_scale, float * __restrict__ dst_ptr,
+        const uint32_t ncols_x, const uint32_t nrows_x, const uint3 nchannels_y,
+        const uint32_t stride_row_x,
+        const uint3 channel_ratio, const uint32_t stride_channel_x,
+        const uint32_t stride_channel_y, const uint32_t stride_channel_dst,
+        const uint3 sample_ratio, const uint32_t stride_sample_x,
+        const uint32_t stride_sample_y, const uint32_t stride_sample_dst) {
+    const int tid = (threadIdx.y << 5) + threadIdx.x;
+    const uint32_t channel_dst = blockIdx.y;
+    const uint32_t sample_dst  = blockIdx.z;
+
+    const uint32_t channel_x = ids_ptr ? (uint32_t) ids_ptr[channel_dst] : fastdiv(channel_dst, channel_ratio);
+    const uint32_t channel_y = ids_ptr ? fastmodulo(channel_dst, nchannels_y) : channel_dst;
+    const uint32_t sample_x  = fastdiv(sample_dst, sample_ratio);
+    const uint32_t sample_y  = sample_dst;
+
+    const block_q8_1 * y = ((const block_q8_1 *) vy_ptr) + (size_t) sample_y * stride_sample_y + (size_t) channel_y * stride_channel_y;
+
+    __shared__ int   s_y_qs[128 * 8];
+    __shared__ float s_y_d[128];
+
+    const int blocks_q8 = (int) (ncols_x / QK8_1);
+    const int total_q8_ints = blocks_q8 << 3;
+    for (int idx = tid; idx < total_q8_ints; idx += 128) {
+        s_y_qs[idx] = get_int_b4(y[idx >> 3].qs, idx & 7);
+    }
+    if (tid < blocks_q8) {
+        s_y_d[tid] = __low2float(y[tid].ds);
+    }
+    __syncthreads();
+
+    const int sub = threadIdx.x & 3;
+    const uint32_t row = blockIdx.x * 32u + (uint32_t) ((threadIdx.y << 3) + (threadIdx.x >> 2));
+
+    float sum = 0.0f;
+    if (row < nrows_x) {
+        const block_nvfp4 * __restrict__ bx_row = ((const block_nvfp4 *) vx_ptr)
+            + (size_t) sample_x * stride_sample_x
+            + (size_t) channel_x * stride_channel_x
+            + (size_t) row * stride_row_x;
+
+        const int blocks_per_row_x = (int) (ncols_x / QK_NVFP4);
+        const int iqs0 = sub << 1;
+        const int iqs1 = iqs0 + 1;
+        const int q8_sub_off = sub >> 1;
+        const int i8_off = (sub & 1) << 2;
+
+        int kbx = 0;
+        for (; kbx + 1 < blocks_per_row_x; kbx += 2) {
+            const block_nvfp4 * b0 = bx_row + kbx;
+            const block_nvfp4 * b1 = bx_row + kbx + 1;
+
+            const int q00 = get_int_b4(b0->qs, iqs0);
+            const int q01 = get_int_b4(b0->qs, iqs1);
+            const uint8_t d0_u8 = b0->d[sub];
+
+            const int q10 = get_int_b4(b1->qs, iqs0);
+            const int q11 = get_int_b4(b1->qs, iqs1);
+            const uint8_t d1_u8 = b1->d[sub];
+
+            {
+                const int2 v0 = get_int_from_table_16(q00, kvalues_mxfp4);
+                const int2 v1 = get_int_from_table_16(q01, kvalues_mxfp4);
+                const int ib8 = (kbx << 1) + q8_sub_off;
+                const int i8  = (ib8 << 3) + i8_off;
+                int sumi = ggml_cuda_dp4a(v0.x, s_y_qs[i8 + 0], 0);
+                sumi = ggml_cuda_dp4a(v0.y, s_y_qs[i8 + 2], sumi);
+                sumi = ggml_cuda_dp4a(v1.x, s_y_qs[i8 + 1], sumi);
+                sumi = ggml_cuda_dp4a(v1.y, s_y_qs[i8 + 3], sumi);
+                sum += (ggml_cuda_ue4m3_to_fp32(d0_u8) * s_y_d[ib8]) * float(sumi);
+            }
+            {
+                const int2 v0 = get_int_from_table_16(q10, kvalues_mxfp4);
+                const int2 v1 = get_int_from_table_16(q11, kvalues_mxfp4);
+                const int ib8 = ((kbx + 1) << 1) + q8_sub_off;
+                const int i8  = (ib8 << 3) + i8_off;
+                int sumi = ggml_cuda_dp4a(v0.x, s_y_qs[i8 + 0], 0);
+                sumi = ggml_cuda_dp4a(v0.y, s_y_qs[i8 + 2], sumi);
+                sumi = ggml_cuda_dp4a(v1.x, s_y_qs[i8 + 1], sumi);
+                sumi = ggml_cuda_dp4a(v1.y, s_y_qs[i8 + 3], sumi);
+                sum += (ggml_cuda_ue4m3_to_fp32(d1_u8) * s_y_d[ib8]) * float(sumi);
+            }
+        }
+        if (kbx < blocks_per_row_x) {
+            const block_nvfp4 * b0 = bx_row + kbx;
+            const int2 v0 = get_int_from_table_16(get_int_b4(b0->qs, iqs0), kvalues_mxfp4);
+            const int2 v1 = get_int_from_table_16(get_int_b4(b0->qs, iqs1), kvalues_mxfp4);
+            const int ib8 = (kbx << 1) + q8_sub_off;
+            const int i8  = (ib8 << 3) + i8_off;
+            int sumi = ggml_cuda_dp4a(v0.x, s_y_qs[i8 + 0], 0);
+            sumi = ggml_cuda_dp4a(v0.y, s_y_qs[i8 + 2], sumi);
+            sumi = ggml_cuda_dp4a(v1.x, s_y_qs[i8 + 1], sumi);
+            sumi = ggml_cuda_dp4a(v1.y, s_y_qs[i8 + 3], sumi);
+            sum += (ggml_cuda_ue4m3_to_fp32(b0->d[sub]) * s_y_d[ib8]) * float(sumi);
+        }
+    }
+
+    sum += __shfl_xor(sum, 2, 32);
+    sum += __shfl_xor(sum, 1, 32);
+
+    if (sub == 0 && row < nrows_x) {
+        if constexpr (has_scale) {
+            sum *= x_scale[ids_ptr ? channel_x : 0];
+        }
+        dst_ptr[(size_t) sample_dst * stride_sample_dst + (size_t) channel_dst * stride_channel_dst + row] = sum;
+    }
+}
+
+// Handwritten RDNA3 Wave32 MMVQ for GGML_TYPE_Q8_0 (batch=1):
+// 8 threads per row, 4 rows per Wave32, 4 waves = 16 rows/block, LDS-cached y (<= 4096).
+// Eliminates nwarps=8 tail idle lanes on K=2304 (72/8=9 iters) & K=3072 (96/8=12 iters),
+// accumulates all 8 dp4a's per block_q8_0 into one integer sumi (4x fewer fp scale conversions),
+// and reduces with 3 warp shuffles and zero __syncthreads().
+__launch_bounds__(128, 2)
+static __global__ void mul_mat_vec_q8_0_rdna3(
+        const void * __restrict__ vx_ptr, const void * __restrict__ vy_ptr, const int32_t * __restrict__ ids_ptr,
+        float * __restrict__ dst_ptr,
+        const uint32_t ncols_x, const uint32_t nrows_x, const uint3 nchannels_y,
+        const uint32_t stride_row_x,
+        const uint3 channel_ratio, const uint32_t stride_channel_x,
+        const uint32_t stride_channel_y, const uint32_t stride_channel_dst,
+        const uint3 sample_ratio, const uint32_t stride_sample_x,
+        const uint32_t stride_sample_y, const uint32_t stride_sample_dst) {
+    const int tid = (threadIdx.y << 5) + threadIdx.x;
+    const uint32_t channel_dst = blockIdx.y;
+    const uint32_t sample_dst  = blockIdx.z;
+
+    const uint32_t channel_x = ids_ptr ? (uint32_t) ids_ptr[channel_dst] : fastdiv(channel_dst, channel_ratio);
+    const uint32_t channel_y = ids_ptr ? fastmodulo(channel_dst, nchannels_y) : channel_dst;
+    const uint32_t sample_x  = fastdiv(sample_dst, sample_ratio);
+    const uint32_t sample_y  = sample_dst;
+
+    const block_q8_1 * y = ((const block_q8_1 *) vy_ptr) + (size_t) sample_y * stride_sample_y + (size_t) channel_y * stride_channel_y;
+
+    __shared__ int   s_y_qs[128 * 8];
+    __shared__ float s_y_d[128];
+
+    const int blocks_q8 = (int) (ncols_x / QK8_0);
+    const int total_q8_ints = blocks_q8 << 3;
+    for (int idx = tid; idx < total_q8_ints; idx += 128) {
+        s_y_qs[idx] = get_int_b4(y[idx >> 3].qs, idx & 7);
+    }
+    if (tid < blocks_q8) {
+        s_y_d[tid] = __low2float(y[tid].ds);
+    }
+    __syncthreads();
+
+    const int sub = threadIdx.x & 7;
+    const uint32_t row = blockIdx.x * 16u + (uint32_t) ((threadIdx.y << 2) + (threadIdx.x >> 3));
+
+    float sum = 0.0f;
+    if (row < nrows_x) {
+        const block_q8_0 * __restrict__ bx_row = ((const block_q8_0 *) vx_ptr)
+            + (size_t) sample_x * stride_sample_x
+            + (size_t) channel_x * stride_channel_x
+            + (size_t) row * stride_row_x;
+
+        for (int kbx = sub; kbx < blocks_q8; kbx += 8) {
+            const block_q8_0 * b = bx_row + kbx;
+            const int * yq = s_y_qs + (kbx << 3);
+            int sumi = 0;
+#pragma unroll
+            for (int j = 0; j < 8; ++j) {
+                sumi = ggml_cuda_dp4a(get_int_b2(b->qs, j), yq[j], sumi);
+            }
+            sum = fmaf(float(sumi), __half2float(b->d) * s_y_d[kbx], sum);
+        }
+    }
+
+    sum += __shfl_xor(sum, 4, 32);
+    sum += __shfl_xor(sum, 2, 32);
+    sum += __shfl_xor(sum, 1, 32);
+
+    if (sub == 0 && row < nrows_x) {
+        dst_ptr[(size_t) sample_dst * stride_sample_dst + (size_t) channel_dst * stride_channel_dst + row] = sum;
+    }
+}
+#endif
+
 template<ggml_type type>
 static std::pair<dim3, dim3> calc_launch_params(
         const int ncols_dst, const int nrows_x, const int nchannels_dst, const int nsamples_or_ntokens,
@@ -1363,6 +1551,52 @@ static void mul_mat_vec_q_switch_ncols_dst(
             static constexpr int c_ncols_dst = 1;
 
 #ifdef GGML_USE_HIP
+            if constexpr (type == GGML_TYPE_NVFP4) {
+                if (table_id == MMVQ_PARAMETERS_RDNA3_0 && warp_size == 32 &&
+                    ncols_x <= 4096 && (ncols_x % QK_NVFP4) == 0 &&
+                    !fusion.shared_up && !fusion.gate && !fusion.x_bias && !fusion.gate_bias && !fusion.gate_scale) {
+                    const dim3 grid((nrows_x + 31) / 32, nchannels_dst, nsamples_dst);
+                    const ggml_cuda_kernel_launch_params params(grid, dim3(32, 4, 1), 0, stream);
+                    if (fusion.x_scale != nullptr) {
+                        ggml_cuda_kernel_launch(mul_mat_vec_nvfp4_rdna3<true>, params,
+                            vx, vy, ids, (const float *) fusion.x_scale, dst,
+                            (uint32_t) ncols_x, (uint32_t) nrows_x, nchannels_y_fd,
+                            (uint32_t) stride_row_x,
+                            channel_ratio_fd, (uint32_t) stride_channel_x,
+                            (uint32_t) stride_channel_y, (uint32_t) stride_channel_dst,
+                            sample_ratio_fd, (uint32_t) stride_sample_x,
+                            (uint32_t) stride_sample_y, (uint32_t) stride_sample_dst);
+                    } else {
+                        ggml_cuda_kernel_launch(mul_mat_vec_nvfp4_rdna3<false>, params,
+                            vx, vy, ids, (const float *) nullptr, dst,
+                            (uint32_t) ncols_x, (uint32_t) nrows_x, nchannels_y_fd,
+                            (uint32_t) stride_row_x,
+                            channel_ratio_fd, (uint32_t) stride_channel_x,
+                            (uint32_t) stride_channel_y, (uint32_t) stride_channel_dst,
+                            sample_ratio_fd, (uint32_t) stride_sample_x,
+                            (uint32_t) stride_sample_y, (uint32_t) stride_sample_dst);
+                    }
+                    return;
+                }
+            }
+            if constexpr (type == GGML_TYPE_Q8_0) {
+                if (table_id == MMVQ_PARAMETERS_RDNA3_0 && warp_size == 32 &&
+                    ncols_x <= 4096 && (ncols_x % QK8_0) == 0 &&
+                    !fusion.shared_up && !fusion.gate && !fusion.x_bias && !fusion.gate_bias &&
+                    !fusion.x_scale && !fusion.gate_scale) {
+                    const dim3 grid((nrows_x + 15) / 16, nchannels_dst, nsamples_dst);
+                    const ggml_cuda_kernel_launch_params params(grid, dim3(32, 4, 1), 0, stream);
+                    ggml_cuda_kernel_launch(mul_mat_vec_q8_0_rdna3, params,
+                        vx, vy, ids, dst,
+                        (uint32_t) ncols_x, (uint32_t) nrows_x, nchannels_y_fd,
+                        (uint32_t) stride_row_x,
+                        channel_ratio_fd, (uint32_t) stride_channel_x,
+                        (uint32_t) stride_channel_y, (uint32_t) stride_channel_dst,
+                        sample_ratio_fd, (uint32_t) stride_sample_x,
+                        (uint32_t) stride_sample_y, (uint32_t) stride_sample_dst);
+                    return;
+                }
+            }
             if constexpr (type == GGML_TYPE_IQ4_NL) {
                 static const bool gate4 = [] {
                     const char * value = getenv("GGML_HIP_IQ4_GATE4");
